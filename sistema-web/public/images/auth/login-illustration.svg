@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fondo con círculos -->
+  <circle cx="700" cy="100" r="300" fill="#E8F0FE" opacity="0.5"/>
+  
+  <!-- Laptop -->
+  <rect x="200" y="200" width="400" height="250" rx="20" fill="#4285F4"/>
+  <rect x="220" y="220" width="360" height="210" rx="10" fill="white"/>
+  
+  <!-- Formulario en la pantalla -->
+  <rect x="280" y="260" width="240" height="30" rx="5" fill="#E8F0FE"/>
+  <rect x="280" y="310" width="240" height="30" rx="5" fill="#E8F0FE"/>
+  <rect x="280" y="360" width="120" height="40" rx="20" fill="#4285F4"/>
+  
+  <!-- Persona -->
+  <circle cx="150" cy="300" r="50" fill="#4285F4"/>
+  <rect x="100" y="350" width="100" height="150" rx="10" fill="#4285F4"/>
+  <path d="M100 400 Q 150 380 200 400" stroke="#4285F4" stroke-width="40"/>
+</svg> 

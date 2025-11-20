@@ -1,0 +1,5 @@
+{
+    "require": {
+        "consoletvs/charts": "6.8"
+    }
+}

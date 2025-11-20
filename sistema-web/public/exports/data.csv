@@ -1,0 +1,19 @@
+INSUMO,CANTIDAD,DÍA,MES,PLATO,DESPERDICIO
+Arroz,10,Sábado,Noviembre,"Sushi de Salmón",1
+Arroz,5,Sábado,Noviembre,"Sushi de Salmón",0.5
+Azucar,10,Sábado,Noviembre,"Paella Valenciana",1
+Azucar,5,Sábado,Noviembre,"Paella Valenciana",0.5
+Aceite,5,Sábado,Noviembre,"Pizza Margherita",0.5
+Sal,5,Sábado,Noviembre,"Paella Valenciana",0.5
+Pimienta,5,Sábado,Noviembre,"Sushi de Salmón",0.5
+Cebolla,5,Sábado,Noviembre,"Pizza Margherita",0.5
+Ajo,5,Sábado,Noviembre,"Pizza Margherita",0.5
+Papa,5,Sábado,Noviembre,"Pizza Margherita",0.5
+Arroz,20,Viernes,Noviembre,"Tacos al Pastor",2
+Azucar,12,Viernes,Noviembre,"Tacos al Pastor",1.2
+Papa,8,Martes,Noviembre,"Ceviche Peruano",0.8
+Tomate,6,Martes,Noviembre,"Ceviche Peruano",0.6
+Lechuga,4,Martes,Noviembre,"Ceviche Peruano",0.4
+Lechuga,2,Miércoles,Noviembre,"Ceviche Peruano",0.2
+Tomate,3,Miércoles,Noviembre,"Ceviche Peruano",0.3
+Papa,4,Miércoles,Noviembre,"Ceviche Peruano",0.4

@@ -36,7 +36,7 @@ class Receta extends Model
     public function insumos()
     {
         return $this->belongsToMany(Insumo::class, 'recetas_insumos')
-            ->withPivot('cantidad', 'desperdicio') // Incluye el campo extra
+            ->withPivot('cantidad', 'desperdicio','presentacion_id') // Incluye el campo extra
             ->withTimestamps();    // Incluye marcas de tiempo
     }
 

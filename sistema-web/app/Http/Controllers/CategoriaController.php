@@ -22,6 +22,16 @@ class CategoriaController extends Controller
         return view('categorias.index', compact('categorias'));
     }
 
+    public function indexInsumos()
+    {
+        return $this->index();
+    }
+
+    public function indexRangos()
+    {
+        return view('categorias.rangos.index');
+    }
+
     /**
      * Show the form for creating a new resource.
      */

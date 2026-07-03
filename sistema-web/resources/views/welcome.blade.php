@@ -1,10 +1,19 @@
+@php
+use App\Models\ConfiguracionSistema as ConfigSistema;
+$nombreRestaurante=ConfigSistema::valor('nombre_restaurante','Las Brazas');
+$descripcionRestaurante=ConfigSistema::valor('descripcion_restaurante');
+$imagenPortada=ConfigSistema::valor('imagen_portada');
+$tipografia=ConfigSistema::valor('tipografia','Arial');
+$faviconSistema=ConfigSistema::valor('favicon');
+@endphp
 <!DOCTYPE html>
 <html lang="es">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Las Brazas - Restaurante</title>
+    <title>{{ $nombreRestaurante }} - Restaurante</title>
+    @if($faviconSistema)<link rel="icon" href="{{ Storage::url($faviconSistema) }}">@endif
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -15,7 +24,7 @@
         }
 
         body {
-            font-family: 'Poppins', sans-serif;
+            font-family: '{{ $tipografia }}', sans-serif;
             color: #2F2B27;
             min-height: 100vh;
             position: relative;
@@ -30,7 +39,7 @@
             width: 100%;
             height: 100%;
             background: linear-gradient(rgba(63, 59, 58, 0.65), rgba(47, 43, 39, 0.75)),
-                        url('/images/imagen de portada.jpg') no-repeat center center/cover;
+                        url('{{ $imagenPortada ? Storage::url($imagenPortada) : asset('images/imagen de portada.jpg') }}') no-repeat center center/cover;
             z-index: -1;
         }
 
@@ -50,6 +59,8 @@
             max-width: 800px;
             padding: 40px;
         }
+
+        .hero-description { color:#fff; font-size:1.15rem; margin-bottom:24px; max-width:680px; }
 
         .hero-title {
             font-size: 10rem;
@@ -146,8 +157,9 @@
 
 <body>
     <main class="hero">
-        <h1 class="hero-title">LAS BRAZAS</h1>
+        <h1 class="hero-title">{{ $nombreRestaurante }}</h1>
         <div class="hero-content">
+            @if($descripcionRestaurante)<p class="hero-description">{{ $descripcionRestaurante }}</p>@endif
             <div class="cta-buttons">
                 @if(Auth::check())
                     <a href="{{ route('home') }}" class="cta-button">Home</a>

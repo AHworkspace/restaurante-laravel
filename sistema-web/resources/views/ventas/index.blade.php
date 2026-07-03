@@ -26,12 +26,12 @@ use Illuminate\Support\Facades\Storage;
                     <h6 class="mb-10">Tabla de ventas</h6>
                     <p>Registra las ventas que hiciste en el día o el momento, no importa cuantos platos el sistema calcula
                         cuanto de insumos gastaste.</p>
-                    @role('admin|cajero')
+                    @can('ventas.crear')
                     <a href="{{ route('ventas.create') }}" class="main-btn dark-btn btn-hover mt-3">
                         <i class="lni lni-circle-plus"></i>
                         Crear nuevo
                     </a>
-                    @endrole
+                    @endcan
                     <form method="GET" class="mb-3 row g-2">
                         <div class="col-md-4">
                             <select name="receta_id" class="form-control">
@@ -86,12 +86,10 @@ use Illuminate\Support\Facades\Storage;
                                         </td>
                                         <td class="min-width">
                                             @php
+                                                $productoVenta = $venta->receta ?? $venta->insumo;
                                                 $imagenUrl = asset('images/recetas.jpg');
-                                                if ($venta->receta->imagen) {
-                                                    $rutaArchivo = storage_path('app/public/' . $venta->receta->imagen);
-                                                    if (file_exists($rutaArchivo)) {
-                                                        $imagenUrl = asset('storage/' . $venta->receta->imagen);
-                                                    }
+                                                if ($productoVenta?->imagen && Storage::disk('public')->exists($productoVenta->imagen)) {
+                                                    $imagenUrl = asset('storage/' . $productoVenta->imagen);
                                                 }
                                             @endphp
                                             <div class="lead">
@@ -100,7 +98,7 @@ use Illuminate\Support\Facades\Storage;
                                                         alt="">
                                                 </div>
                                                 <div class="lead-text">
-                                                    <p>{{ $venta->receta->nombre }}</p>
+                                                    <p>{{ $venta->producto_nombre }}</p>
                                                 </div>
                                             </div>
                                         </td>
@@ -118,7 +116,7 @@ use Illuminate\Support\Facades\Storage;
                                         </td>
                                         <td>
                                             <div class="action d-flex gap-2">
-                                                @role('admin|cajero')
+                                                @canany(['ventas.editar','ventas.eliminar'])
                                                 <a href="{{ route('ventas.edit', $venta->id) }}"
                                                    class="main-btn dark-btn btn-hover"
                                                    style="background-color: #6F4E37; border-color: #6F4E37; font-size: 14px; padding: 5px 15px; border-radius: 6px;">
@@ -134,7 +132,7 @@ use Illuminate\Support\Facades\Storage;
                                                         ELIMINAR
                                                     </button>
                                                 </form>
-                                                @endrole
+                                                @endcanany
                                             </div>
                                         </td>
                                     </tr>

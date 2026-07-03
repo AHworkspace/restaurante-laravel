@@ -66,7 +66,7 @@ class UnidadMedidaSeeder extends Seeder
         UnidadMedida::create([
             'nombre' => 'Cuartilla',
             'abreviatura' => 'Cta',
-            'descripcion' => 'Unidad de medida de volumen',
+            'descripcion' => 'Unidad comercial de peso equivalente a un cuarto de arroba',
         ]);
 
         UnidadMedida::create([

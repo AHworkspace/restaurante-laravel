@@ -23,11 +23,11 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h3 class="mb-0">Unidades de Medida</h3>
-                    @role('admin|cocinero')
+                    @can('unidades.crear')
                     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
                         <i class="fas fa-plus"></i> Nueva Unidad
                     </button>
-                    @endrole
+                    @endcan
                 </div>
 
                 <div class="card-body">
@@ -68,7 +68,7 @@
                                         <td>{{ $unidad->abreviatura }}</td>
                                         <td>{{ $unidad->descripcion ?? 'N/A' }}</td>
                                         <td>
-                                            @role('admin|cocinero')
+                                            @canany(['unidades.editar','unidades.eliminar'])
                                             <button type="button"
                                                     class="btn"
                                                     style="background-color: #6F4E37; color: white; border-radius: 5px; padding: 8px 20px; border: none; margin-right: 8px;"
@@ -86,7 +86,7 @@
                                                     ELIMINAR
                                                 </button>
                                             </form>
-                                            @endrole
+                                            @endcanany
                                         </td>
                                     </tr>
                                 @empty
@@ -102,7 +102,7 @@
         </div>
     </div>
 
-    @role('admin|cocinero')
+    @canany(['unidades.crear','unidades.editar'])
     <!-- Modal Crear -->
     <div class="modal fade" id="createModal" tabindex="-1" aria-labelledby="createModalLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -213,7 +213,7 @@
             </div>
         </div>
     @endforeach
-    @endrole
+    @endcanany
 </div>
 @endsection
 

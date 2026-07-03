@@ -1,0 +1,6 @@
+@extends('layouts.app-cliente')
+@section('content')
+<div class="title-wrapper pt-30"><div class="title mb-30"><h2>Mis pagos</h2></div></div>
+<div class="row mb-3"><div class="col-md-6 mb-3"><div class="card-style-3 h-100"><div class="card-content"><small class="text-muted">Saldo pendiente</small><h3 class="mt-2">Bs {{ number_format($saldoPendiente,2) }}</h3></div></div></div><div class="col-md-6 mb-3"><div class="card-style-3 h-100"><div class="card-content"><small class="text-muted">Saldo adelantado</small><h3 class="mt-2">Bs {{ number_format($saldoAdelantado,2) }}</h3></div></div></div></div>
+<div class="card-style-3 mb-30"><div class="card-content"><div class="table-responsive"><table class="table"><thead><tr><th>Fecha</th><th>Tipo</th><th>Método</th><th>Monto</th><th>Referencia</th></tr></thead><tbody>@forelse($pagos as $p)<tr><td>{{ $p->fecha_pago->format('d/m/Y') }}</td><td>{{ ucfirst(str_replace('_',' ',$p->tipo_pago)) }}</td><td>{{ ucfirst($p->metodo_pago) }}</td><td><strong>Bs {{ number_format($p->monto,2) }}</strong></td><td>{{ $p->referencia?:'-' }}</td></tr>@empty<tr><td colspan="5" class="text-center text-muted">No tienes pagos registrados.</td></tr>@endforelse</tbody></table></div></div></div>
+@endsection

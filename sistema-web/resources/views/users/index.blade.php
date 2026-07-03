@@ -45,7 +45,7 @@
                 @endif
 
 
-                @role('admin')
+                @can('usuarios.crear')
                 <div class="mb-3">
                     <button class="main-btn dark-btn btn-hover mt-3" data-bs-toggle="modal"
                         data-bs-target="#crearUsuarioModal">
@@ -53,13 +53,13 @@
                         Crear nuevo
                     </button>
                 </div>
-                @endrole
+                @endcan
 
-                @role('admin')
+                @can('usuarios.editar')
                 @livewire('usuario')
-                @endrole
+                @endcan
 
-                @role('director')
+                @cannot('usuarios.editar')
                 <!-- Vista solo lectura para director -->
                 <div class="table-wrapper table-responsive">
                     <table class="table">
@@ -107,12 +107,12 @@
                         {{ $users->links() }}
                     </div>
                 </div>
-                @endrole
+                @endcannot
             </div>
         </div>
     </div>
 
-    @role('admin')
+    @can('usuarios.crear')
     <div class="modal fade" id="crearUsuarioModal" tabindex="-1" aria-labelledby="crearUsuarioLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content text-dark">
@@ -181,7 +181,7 @@
             </div>
         </div>
     </div>
-    @endrole
+    @endcan
 
     @if ($errors->any())
         <script>

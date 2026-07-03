@@ -15,7 +15,7 @@ class VentaController extends Controller
      */
     public function index(Request $request)
     {
-        $query = \App\Models\Venta::query();
+        $query = \App\Models\Venta::with(['receta','insumo','presentacion.insumo']);
         if ($request->filled('receta_id')) {
             $query->where('receta_id', $request->receta_id);
         }
@@ -83,11 +83,12 @@ class VentaController extends Controller
      */
     public function show(Venta $venta)
     {
+        $venta->load(['receta.insumos','insumo.unidad_medida','presentacion.insumo','consumidor']);
         if (!auth()->user() || !auth()->user()->restaurante) {
             return redirect()->route('home')->with('error', 'No tienes un restaurante asociado.');
         }
 
-        return view('ventas.show', compact('venta'));
+        return view($venta->insumo_id ? 'ventas.show-directo' : 'ventas.show', compact('venta'));
     }
 
     /**
@@ -95,6 +96,7 @@ class VentaController extends Controller
      */
     public function edit(Venta $venta)
     {
+        if($venta->insumo_id)return redirect()->route('ventas.show',$venta)->with('error','La venta directa se corrige desde el consumo asociado para conservar el inventario.');
         $recetas = Receta::all();
         return view('ventas.edit', compact('venta', 'recetas'));
     }

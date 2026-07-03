@@ -1,5 +1,31 @@
 # PROYECTO FINAL SWI
 
+## Reconstruccion del sistema ampliado de restaurante
+
+Este repositorio es la base elegida para reconstruir la version amplia encontrada en el historial de Cursor (`proyecto_restaurante2`). La aplicacion web se encuentra en `sistema-web`.
+
+Sectores recuperados e integrados:
+
+- Consumidores con fuerza, institucion y grado/rango.
+- Consumos por cliente, receta y tipo de comida.
+- Pagos totales, parciales, por periodo y adelantos.
+- Estado de cuenta e historial por consumidor.
+- Configuracion con subsecciones de fuerzas, instituciones, grados y tipos de comida.
+- Navegacion por roles y nuevos indicadores en el panel principal.
+
+La base PostgreSQL existente conservaba las tablas y datos principales del sistema perdido. Las migraciones de reconstruccion reutilizan esas tablas y agregan solamente las estructuras faltantes.
+
+### Ejecucion rapida
+
+```powershell
+cd C:\Users\20\Desktop\proyecto-software2_restaurante\sistema-web
+php artisan migrate
+npm run build
+php artisan serve
+```
+
+Abrir `http://127.0.0.1:8000`. Para desarrollo del frontend se puede ejecutar `npm run dev` en otra terminal.
+
 ## SISTEMA INTELIGENTE PARA CONTROLAR INSUMOS EN ALMACEN DE COCINA
 
 ## 🚀 Instrucciones de Ejecución

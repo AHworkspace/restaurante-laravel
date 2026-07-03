@@ -25,12 +25,12 @@ use Illuminate\Support\Facades\Storage;
                 <div class="card-style mb-30">
                     <h6 class="mb-10">Tabla de recetas</h6>
                     <p>Estas recetas son platillos que prepara el sistema, cada receta está calculada para 1 porción.</p>
-                    @role('admin|cocinero')
+                    @can('recetas.crear')
                     <a href="{{ route('recetas.create') }}" class="main-btn dark-btn btn-hover mt-3">
                         <i class="lni lni-circle-plus"></i>
                         Crear nuevo
                     </a>
-                    @endrole
+                    @endcan
 
                     <form method="GET" class="mb-3 row g-2">
                         <div class="col-md-8">
@@ -57,12 +57,11 @@ use Illuminate\Support\Facades\Storage;
                                     <th class="lead-indicaciones">
                                         <h6>Indicaciones</h6>
                                     </th>
-                                    <th>Visible</th>
-                                    @role('admin|cocinero')
+                                    @canany(['recetas.editar','recetas.eliminar'])
                                     <th>
                                         <h6>Acciones</h6>
                                     </th>
-                                    @endunless
+                                    @endcanany
                                 </tr>
                                 <!-- end table row-->
                             </thead>
@@ -73,11 +72,8 @@ use Illuminate\Support\Facades\Storage;
                                             <div class="lead">
                                                 @php
                                                     $imagenUrl = asset('images/recetas.jpg');
-                                                    if ($receta->imagen) {
-                                                        $rutaArchivo = storage_path('app/public/' . $receta->imagen);
-                                                        if (file_exists($rutaArchivo)) {
-                                                            $imagenUrl = asset('storage/' . $receta->imagen);
-                                                        }
+                                                    if ($receta->imagen && Storage::disk('public')->exists($receta->imagen)) {
+                                                        $imagenUrl = asset('storage/' . $receta->imagen);
                                                     }
                                                 @endphp
                                                 <div class="lead-image">
@@ -115,20 +111,9 @@ use Illuminate\Support\Facades\Storage;
                                                 </div>
                                             </div>
                                         </td>
-                                        <td>
-                                            @role('admin')
-                                            <form action="{{ route('recetas.toggleVisible', $receta->id) }}" method="POST" style="display:inline;">
-                                                @csrf
-                                                <input type="checkbox" name="visible" onchange="this.form.submit()" {{ $receta->visible ? 'checked' : '' }}>
-                                            </form>
-                                            @else
-                                            <input type="checkbox" disabled {{ $receta->visible ? 'checked' : '' }}>
-                                            @endrole
-                                        </td>
-                                        @unless(auth()->user()->hasRole('mesero'))
+                                        @canany(['recetas.editar','recetas.eliminar'])
                                         <td>
                                             <div class="action d-flex gap-2">
-                                                @role('admin|cocinero')
                                                 <a href="{{ route('recetas.edit', $receta->id) }}"
                                                    class="main-btn dark-btn btn-hover"
                                                    style="background-color: #6F4E37; border-color: #6F4E37; font-size: 14px; padding: 5px 15px; border-radius: 6px;">
@@ -144,10 +129,9 @@ use Illuminate\Support\Facades\Storage;
                                                         ELIMINAR
                                                     </button>
                                                 </form>
-                                                @endrole
                                             </div>
                                         </td>
-                                        @endunless
+                                        @endcanany
                                     </tr>
                                 @empty
                                     <tr>

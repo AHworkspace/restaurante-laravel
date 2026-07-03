@@ -20,6 +20,33 @@
                     @endif
                     <form action="{{ route('movimientos.store') }}" method="POST">
                         @csrf
+                        <div class="mb-3" id="compra-linea-group">
+                            <label for="compra_linea_id" class="form-label">Línea de compra a recibir (opcional)</label>
+                            <select name="compra_linea_id" id="compra_linea_id" class="form-control">
+                                <option value="">Entrada sin compra asociada</option>
+                                @foreach($lineasCompra as $linea)
+                                    <option value="{{ $linea->id }}"
+                                            data-insumo="{{ $linea->insumo_id }}"
+                                            data-presentacion="{{ $linea->presentacion_id }}"
+                                            data-unidad="{{ $linea->unidad_medida_id ?: $linea->insumo?->unidad_medida_id }}"
+                                            data-faltante="{{ $linea->cantidad_faltante }}"
+                                            data-faltante-base="{{ $linea->cantidad_faltante_base }}"
+                                            data-faltante-empaques="{{ $linea->faltante_desglosado['empaques'] }}"
+                                            data-faltante-sueltas="{{ $linea->faltante_desglosado['sueltas'] }}"
+                                            data-es-empaque="{{ $linea->faltante_desglosado['es_empaque'] ? 1 : 0 }}"
+                                            data-costo="{{ $linea->costo_linea }}"
+                                            data-factor="{{ $linea->factor_compra_base ?: 1 }}"
+                                            data-base-abrev="{{ $linea->unidadInventario?->abreviatura ?: $linea->insumo?->unidad_medida?->abreviatura }}"
+                                            data-proveedor="{{ $linea->compra?->proveedorRel?->nombre ?: $linea->compra?->proveedor }}"
+                                            data-proveedor-id="{{ $linea->compra?->proveedor_id }}"
+                                            data-marca="{{ $linea->marca?->nombre ?: 'Sin especificar' }}"
+                                            @selected(old('compra_linea_id', request('compra_linea_id')) == $linea->id)>
+                                        Compra {{ $linea->compra?->numero_documento ?: '#'.$linea->compra_id }} - {{ $linea->insumo?->nombre }} · {{ $linea->presentacion?->nombre }}@if($linea->formatoEmpaque) · {{ $linea->formatoEmpaque->nombre }}@endif @if($linea->marca)({{ $linea->marca->nombre }})@endif - Faltan {{ number_format($linea->cantidad_faltante, 2) }} {{ $linea->unidadMedida?->abreviatura }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <small id="compra-linea-info" class="form-text text-muted">Selecciona una línea para registrar una recepción vinculada y controlar faltantes.</small>
+                        </div>
                         <div class="mb-3">
                             <label for="insumo_id" class="form-label">Insumo</label>
                             <select name="insumo_id" id="insumo_id" class="form-control" required>
@@ -31,8 +58,14 @@
                         </div>
                         <div class="mb-3">
                             <label for="cantidad" class="form-label">Cantidad</label>
-                            <input type="number" name="cantidad" id="cantidad" class="form-control" min="0.01" step="0.01" required value="{{ old('cantidad') }}">
+                            <input type="number" name="cantidad" id="cantidad" class="form-control" min="0" step="0.01" required value="{{ old('cantidad') }}">
                         </div>
+                        <div class="mb-3 d-none" id="cantidad-suelta-group">
+                            <label for="cantidad_suelta" class="form-label">Unidades interiores sueltas</label>
+                            <input type="number" name="cantidad_suelta" id="cantidad_suelta" class="form-control" min="0" step="0.0001" value="{{ old('cantidad_suelta',0) }}">
+                            <small class="form-text text-muted">Bolsas, botellas, latas u otras unidades recibidas fuera de un empaque completo.</small>
+                        </div>
+                        <div class="mb-3"><label for="presentacion_id" class="form-label">Presentación</label><select name="presentacion_id" id="presentacion_id" class="form-control"><option value="">Selecciona el insumo</option>@foreach($presentaciones as $presentacion)<option value="{{ $presentacion->id }}" data-insumo="{{ $presentacion->insumo_id }}">{{ $presentacion->insumo->nombre }} · {{ $presentacion->nombre }}</option>@endforeach</select></div>
                         <div class="mb-3">
                             <label for="unidad_medida_id" class="form-label">Unidad de Medida</label>
                             <select name="unidad_medida_id" id="unidad_medida_id" class="form-control">
@@ -115,6 +148,7 @@
             'costo_estandar' => $insumo->costo_estandar,
         ]];
     })->toArray();
+    $presentacionesJson=$presentaciones->mapWithKeys(fn($p)=>[$p->id=>['costo_estandar'=>(float)$p->costo_estandar,'unidad_stock_id'=>$p->unidad_stock_id]])->toArray();
 
     // Agregar conversiones de unidades para el cálculo del costo
     $conversionesJson = \App\Models\ConversionesUnidades::with(['unidadOrigen', 'unidadDestino'])->get()
@@ -132,15 +166,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const insumoSelect = document.getElementById('insumo_id');
     const unidadSelect = document.getElementById('unidad_medida_id');
     const cantidadInput = document.getElementById('cantidad');
+    const cantidadSueltaInput = document.getElementById('cantidad_suelta');
+    const cantidadSueltaGroup = document.getElementById('cantidad-suelta-group');
+    const presentacionSelect = document.getElementById('presentacion_id');
     const unidadBaseInfo = document.getElementById('unidad-base-info');
     const conversionInfo = document.getElementById('conversion-info');
     const tipoSelect = document.getElementById('tipo');
+    const compraLineaSelect = document.getElementById('compra_linea_id');
+    const compraLineaGroup = document.getElementById('compra-linea-group');
+    const compraLineaInfo = document.getElementById('compra-linea-info');
     const entradaFields = document.getElementById('entrada-fields');
     const salidaFields = document.getElementById('salida-fields');
     const costoInput = document.getElementById('costo_compra');
+    const proveedorSelect = document.getElementById('proveedor_id');
     const costoSugerido = document.getElementById('costo-sugerido');
 
     const insumosData = @json($insumosJson);
+    const presentacionesData = @json($presentacionesJson);
     const conversionesData = @json($conversionesJson);
 
     // Función para obtener factor de conversión (puede ser directa o indirecta)
@@ -239,6 +281,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!unidadSelect.value) {
                 unidadSelect.value = unidad.unidad_id;
             }
+            let primera='';presentacionSelect.querySelectorAll('option[data-insumo]').forEach(o=>{o.hidden=o.dataset.insumo!==String(insumoId);if(!o.hidden&&!primera)primera=o.value;});if(!presentacionSelect.value||presentacionSelect.selectedOptions[0]?.hidden)presentacionSelect.value=primera;
         } else {
             unidadBaseInfo.textContent = '';
         }
@@ -248,6 +291,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function actualizarConversion() {
         const insumoId = insumoSelect.value;
         const unidadId = unidadSelect.value;
+        const presentacion=presentacionesData[presentacionSelect.value];
+        const costoEstandar=Number(presentacion?.costo_estandar||0);
         const cantidad = parseFloat(cantidadInput.value);
 
         if (insumoId && unidadId && cantidad && insumosData[insumoId]) {
@@ -270,11 +315,47 @@ document.addEventListener('DOMContentLoaded', function() {
         if (tipoSelect.value === 'entrada') {
             entradaFields.style.display = 'block';
             salidaFields.style.display = 'none';
+            compraLineaGroup.style.display = 'block';
             actualizarCostoSugerido();
         } else {
             entradaFields.style.display = 'none';
             salidaFields.style.display = 'block';
+            compraLineaGroup.style.display = 'none';
+            compraLineaSelect.value = '';
         }
+    }
+
+    function aplicarLineaCompra() {
+        const option = compraLineaSelect.options[compraLineaSelect.selectedIndex];
+        if (!compraLineaSelect.value || !option) {
+            cantidadInput.removeAttribute('max');
+            cantidadSueltaGroup.classList.add('d-none');
+            cantidadSueltaInput.value = 0;
+            insumoSelect.disabled = false;
+            unidadSelect.disabled = false;
+            compraLineaInfo.textContent = 'Selecciona una línea para registrar una recepción vinculada y controlar faltantes.';
+            return;
+        }
+        insumoSelect.value = option.dataset.insumo;
+        unidadSelect.value = option.dataset.unidad || '';
+        presentacionSelect.value = option.dataset.presentacion || '';
+        cantidadInput.max = option.dataset.faltanteEmpaques;
+        cantidadInput.value = option.dataset.faltanteEmpaques;
+        cantidadSueltaInput.value = option.dataset.faltanteSueltas || 0;
+        cantidadSueltaGroup.classList.toggle('d-none', option.dataset.esEmpaque !== '1');
+        insumoSelect.disabled = false;
+        unidadSelect.disabled = false;
+        const entradaBase = Number(option.dataset.faltanteBase || 0);
+        const pendienteTexto = option.dataset.esEmpaque === '1'
+            ? option.dataset.faltanteEmpaques + ' empaques y ' + option.dataset.faltanteSueltas + ' ' + option.dataset.baseAbrev
+            : option.dataset.faltanteEmpaques + ' ' + (unidadSelect.selectedOptions[0]?.text || '');
+        compraLineaInfo.textContent = 'Proveedor: ' + option.dataset.proveedor + '. Marca/empresa: ' + option.dataset.marca + '. Pendiente: ' + pendienteTexto + '. Entrada total: ' + entradaBase.toFixed(4) + ' ' + option.dataset.baseAbrev + '. Costo original: Bs. ' + Number(option.dataset.costo || 0).toFixed(2) + '.';
+        document.getElementById('motivo').value = 'Recepción de compra';
+        actualizarUnidadBase();
+        costoInput.value = Number(option.dataset.costo || 0).toFixed(2);
+        proveedorSelect.value = option.dataset.proveedorId || '';
+        ultimoCostoCalculado = costoInput.value;
+        costoSugerido.textContent = 'Costo registrado originalmente en la línea de compra: Bs. ' + costoInput.value + '. Puedes modificarlo si corresponde.';
     }
 
     function actualizarCostoSugerido() {
@@ -282,18 +363,37 @@ document.addEventListener('DOMContentLoaded', function() {
             costoSugerido.textContent = '';
             return;
         }
+        if (compraLineaSelect.value) {
+            const option = compraLineaSelect.options[compraLineaSelect.selectedIndex];
+            costoSugerido.textContent = 'Costo registrado originalmente en la línea de compra: Bs. ' + Number(option.dataset.costo || 0).toFixed(2) + '. Puedes modificarlo si corresponde.';
+            return;
+        }
 
         const insumoId = insumoSelect.value;
         const cantidad = parseFloat(cantidadInput.value);
         const unidadId = unidadSelect.value;
 
-        if (!insumoId || !insumosData[insumoId] || !insumosData[insumoId].costo_estandar || !cantidad) {
+        if (!insumoId || !insumosData[insumoId] || !costoEstandar || !cantidad) {
             costoSugerido.textContent = 'Sin costo estándar registrado para este insumo.';
             return;
         }
 
         const insumo = insumosData[insumoId];
         const unidadBaseId = parseInt(insumo.unidad_id);
+        const unidadSeleccionada = unidadId ? parseInt(unidadId) : unidadBaseId;
+        const factorHaciaBase = obtenerFactorConversion(unidadSeleccionada, unidadBaseId);
+        if (factorHaciaBase === null || factorHaciaBase <= 0) {
+            costoSugerido.textContent = 'Esta unidad no tiene conversión automática. Ingresa el costo total manualmente.';
+            return;
+        }
+        const cantidadBase = cantidad * factorHaciaBase;
+        const costoCalculadoDirecto = (cantidadBase * costoEstandar).toFixed(2);
+        costoInput.value = costoCalculadoDirecto;
+        ultimoCostoCalculado = costoCalculadoDirecto;
+        costoSugerido.textContent = cantidad + ' ' + (unidadSelect.selectedOptions[0]?.text || insumo.unidad_abrev) +
+            ' equivalen a ' + cantidadBase.toFixed(4) + ' ' + insumo.unidad_abrev +
+            '. Costo calculado: Bs. ' + costoCalculadoDirecto + '.';
+        return;
         // Si no hay unidad seleccionada o está vacía, usar la unidad base
         const unidadSeleccionadaId = (unidadId && unidadId !== '') ? parseInt(unidadId) : unidadBaseId;
         const costoEstandar = parseFloat(insumo.costo_estandar);
@@ -355,9 +455,11 @@ document.addEventListener('DOMContentLoaded', function() {
     let ultimoCostoCalculado = '';
 
     insumoSelect.addEventListener('change', actualizarUnidadBase);
+    presentacionSelect.addEventListener('change', actualizarCostoSugerido);
     unidadSelect.addEventListener('change', actualizarConversion);
     cantidadInput.addEventListener('input', actualizarConversion);
     tipoSelect.addEventListener('change', actualizarTipoCampos);
+    compraLineaSelect.addEventListener('change', aplicarLineaCompra);
 
     // Mostrar campos de entrada si el tipo es "entrada" al cargar
     if (tipoSelect.value === 'entrada') {
@@ -394,6 +496,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Inicializar al cargar
     actualizarUnidadBase();
     actualizarTipoCampos();
+    aplicarLineaCompra();
 
     // Calcular costo inicial si hay valores pre-cargados y es tipo entrada
     if (tipoSelect.value === 'entrada' && insumoSelect.value && cantidadInput.value) {

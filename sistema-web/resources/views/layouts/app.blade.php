@@ -1,3 +1,35 @@
+@php
+use App\Models\ConfiguracionSistema as ConfigSistema;
+$nombreRestaurante=ConfigSistema::valor('nombre_restaurante','Las Brazas');
+$logoSistema=ConfigSistema::valor('logo');
+$colorPrimario=ConfigSistema::valor('color_primario','#7A5C58');
+$colorSecundario=ConfigSistema::valor('color_secundario','#CDBEAC');
+$colorFondo=ConfigSistema::valor('color_fondo','#F5F1EC');
+$colorSidebar=ConfigSistema::valor('color_sidebar','#3F3B3A');
+$colorSuperficie=ConfigSistema::valor('color_superficie','#FFFFFF');
+$colorEncabezado=ConfigSistema::valor('color_encabezado','#3F3B3A');
+$colorTexto=ConfigSistema::valor('color_texto','#2F2B27');
+$colorTextoSecundario=ConfigSistema::valor('color_texto_secundario','#8A8078');
+$colorBorde=ConfigSistema::valor('color_borde','#D8D0C8');
+$colorTabla=ConfigSistema::valor('color_tabla_cabecera','#E7DED3');
+$colorEntrada=ConfigSistema::valor('color_entrada','#FFFFFF');
+$colorExito=ConfigSistema::valor('color_exito','#4F9D7A');
+$colorPeligro=ConfigSistema::valor('color_peligro','#D26A6A');
+$tipografia=ConfigSistema::valor('tipografia','Arial');
+$tipografiaTitulos=ConfigSistema::valor('tipografia_titulos','Arial');
+$tamanoTexto=(int)ConfigSistema::valor('tamano_texto',16);
+$radioBordes=(int)ConfigSistema::valor('radio_bordes',8);
+$densidad=ConfigSistema::valor('densidad','normal');
+$sombra=ConfigSistema::valor('sombra','suave');
+$estiloBotones=ConfigSistema::valor('estilo_botones','solido');
+$tema=ConfigSistema::valor('tema','personalizado');
+$faviconSistema=ConfigSistema::valor('favicon');
+$altoContraste=ConfigSistema::valor('contraste','normal')==='alto';
+if($tema==='oscuro'){$colorFondo='#171717';$colorSuperficie='#242424';$colorEncabezado='#111111';$colorSidebar='#111111';$colorTexto='#F5F5F5';$colorTextoSecundario='#C7C7C7';$colorBorde='#4A4A4A';$colorTabla='#303030';$colorEntrada='#2D2D2D';}
+if($tema==='claro'){$colorFondo='#F5F7FA';$colorSuperficie='#FFFFFF';$colorEncabezado='#2F343A';$colorSidebar='#2F343A';$colorTexto='#24272B';$colorTextoSecundario='#6B7280';$colorBorde='#DDE2E7';$colorTabla='#EEF1F4';$colorEntrada='#FFFFFF';}
+$sombraCss=['ninguna'=>'none','suave'=>'0 4px 14px rgba(0,0,0,.08)','media'=>'0 8px 24px rgba(0,0,0,.16)'][$sombra]??'none';
+$paddingCelda=['compacta'=>'8px','normal'=>'12px','comoda'=>'16px'][$densidad]??'12px';
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 
@@ -6,7 +38,8 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ config('app.name', 'Laravel') }}</title>
+    <title>{{ $nombreRestaurante }}</title>
+    @if($faviconSistema)<link rel="icon" href="{{ Storage::url($faviconSistema) }}">@endif
 
     <!-- ========== All CSS files linkup ========= -->
     <link rel="stylesheet" href="{{ asset('css/lineicons.css') }}" />
@@ -16,27 +49,37 @@
 
     <style>
         :root {
-            --color-bg: #F5F1EC;
-            --color-surface: #FFFFFF;
-            --color-sidebar: #3F3B3A;
+            --color-bg: {{ $altoContraste?'#FFFFFF':$colorFondo }};
+            --color-surface: {{ $altoContraste?'#FFFFFF':$colorSuperficie }};
+            --color-sidebar: {{ $altoContraste?'#000000':$colorSidebar }};
             --color-sidebar-accent: #6F4E37;
-            --color-primary: #7A5C58;
+            --color-primary: {{ $altoContraste?'#000000':$colorPrimario }};
             --color-primary-dark: #5D403D;
-            --color-secondary: #CDBEAC;
+            --color-secondary: {{ $altoContraste?'#FFFF00':$colorSecundario }};
             --color-soft-beige: #E7DED3;
-            --color-text: #2F2B27;
-            --color-muted: #8A8078;
+            --color-text: {{ $altoContraste?'#000000':$colorTexto }};
+            --color-muted: {{ $altoContraste?'#000000':$colorTextoSecundario }};
+            --color-border: {{ $altoContraste?'#000000':$colorBorde }};
+            --color-table-head: {{ $altoContraste?'#FFFFFF':$colorTabla }};
+            --color-input: {{ $altoContraste?'#FFFFFF':$colorEntrada }};
+            --color-success: {{ $colorExito }};
+            --color-danger: {{ $colorPeligro }};
+            --radius-ui: {{ $radioBordes }}px;
+            --shadow-ui: {{ $sombraCss }};
+            --cell-padding: {{ $paddingCelda }};
             --color-highlight: #9F7A73;
         }
 
         body {
             background-color: var(--color-bg);
             color: var(--color-text);
+            font-family: '{{ $tipografia }}', sans-serif;
+            font-size: {{ $tamanoTexto }}px;
         }
 
         /* Estilos del Sidebar */
         .sidebar-nav-wrapper {
-            background: linear-gradient(180deg, var(--color-sidebar), #4F4A47) !important;
+            background: var(--color-sidebar) !important;
             color: white;
         }
 
@@ -69,7 +112,7 @@
 
         /* Estilos del Header */
         .header {
-            background: var(--color-sidebar) !important;
+            background: {{ $altoContraste?'#000000':$colorEncabezado }} !important;
             box-shadow: 0 2px 6px rgba(47, 43, 39, 0.25);
         }
 
@@ -79,11 +122,11 @@
         button[type="submit"],
         .custom-button,
         .main-btn {
-            background: var(--color-primary) !important;
-            border: none !important;
-            color: white !important;
+            background: {{ $estiloBotones==='contorno'?'transparent':'var(--color-primary)' }} !important;
+            border: {{ $estiloBotones==='contorno'?'1px solid var(--color-primary)':'none' }} !important;
+            color: {{ $estiloBotones==='contorno'?'var(--color-primary)':'white' }} !important;
             padding: 10px 20px !important;
-            border-radius: 8px !important;
+            border-radius: var(--radius-ui) !important;
             font-weight: 500 !important;
             transition: all 0.3s ease !important;
             text-transform: uppercase;
@@ -199,12 +242,21 @@
             margin-bottom: 20px;
         }
 
+        h1,h2,h3,h4,h5,h6 { font-family: '{{ $tipografiaTitulos }}', sans-serif; }
+
         .card {
             background: var(--color-surface);
-            border-radius: 12px;
-            box-shadow: 0 8px 24px rgba(47, 43, 39, 0.08);
+            border-radius: var(--radius-ui);
+            box-shadow: var(--shadow-ui);
             margin-bottom: 20px;
-            border: 1px solid rgba(138, 128, 120, 0.15);
+            border: 1px solid var(--color-border);
+        }
+
+        .card-style, .card-style-1, .card-style-2, .card-style-3, .card-style-4, .card-style-5, .card-style-6 {
+            background: var(--color-surface) !important;
+            border: 1px solid var(--color-border) !important;
+            border-radius: var(--radius-ui) !important;
+            box-shadow: var(--shadow-ui) !important;
         }
 
         .card-header {
@@ -226,26 +278,27 @@
         }
 
         th {
-            background: var(--color-soft-beige);
+            background: var(--color-table-head);
             color: var(--color-primary);
             font-weight: 600;
-            padding: 12px;
+            padding: var(--cell-padding);
             text-align: left;
             border-bottom: 2px solid rgba(138, 128, 120, 0.25);
         }
 
         td {
-            padding: 12px;
-            border-bottom: 1px solid rgba(138, 128, 120, 0.15);
+            padding: var(--cell-padding);
+            border-bottom: 1px solid var(--color-border);
             color: var(--color-text);
         }
 
         .form-control {
-            border: 1px solid rgba(138, 128, 120, 0.5);
-            border-radius: 8px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-ui);
             padding: 8px 12px;
             transition: all 0.3s ease;
-            background-color: var(--color-surface);
+            background-color: var(--color-input);
+            color: var(--color-text);
         }
 
         .form-control:focus {
@@ -267,13 +320,13 @@
 
         .alert-success {
             background-color: #edf8f2;
-            border-color: #4f9d7a;
+            border-color: var(--color-success);
             color: #306b4f;
         }
 
         .alert-danger {
             background-color: #fdecec;
-            border-color: #d26a6a;
+            border-color: var(--color-danger);
             color: #a83e3e;
         }
 
@@ -399,7 +452,7 @@
     <aside class="sidebar-nav-wrapper">
         <div class="navbar-logo">
             <a href="{{ route('home') }}" class="logo-text">
-                <span class="brand-text">LAS BRAZAS</span>
+                @if($logoSistema)<img src="{{ Storage::url($logoSistema) }}" alt="{{ $nombreRestaurante }}" style="max-height:52px;max-width:180px;object-fit:contain">@else<span class="brand-text">{{ $nombreRestaurante }}</span>@endif
             </a>
         </div>
         <nav class="sidebar-nav">
@@ -479,7 +532,7 @@
                     <div class="col-md-6 order-last order-md-first">
                         <div class="copyright text-md-start">
                             <p class="text-sm">
-                                Sistema de Gestión - Las Brazas Restaurant © {{ date('Y') }}
+                                Sistema de Gestión - {{ $nombreRestaurante }} © {{ date('Y') }}
                             </p>
                         </div>
                     </div>

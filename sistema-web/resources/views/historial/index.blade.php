@@ -54,7 +54,7 @@
                                 <tr>
                                     <th>Fecha</th>
                                     <th>Hora</th>
-                                    <th>Sección</th>
+                                    <th>Sector</th>
                                     <th>Usuario</th>
                                     <th>Rol</th>
                                     <th>Acción</th>
@@ -69,12 +69,12 @@
                                         <td>{{ $item->seccion }}</td>
                                         <td>{{ $item->usuario }}</td>
                                         <td>{{ $item->rol }}</td>
-                                        <td>{{ $item->accion }}</td>
-                                        <td>{{ $item->detalles }}</td>
+                                        <td><strong>{{ $item->accion }}</strong></td>
+                                        <td style="min-width:320px; white-space:normal;">{{ $item->detalles }}</td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="6" class="text-center text-muted">No hay acciones registradas en el historial</td>
+                                        <td colspan="7" class="text-center text-muted">No hay acciones registradas en el historial</td>
                                     </tr>
                                 @endforelse
                             </tbody>

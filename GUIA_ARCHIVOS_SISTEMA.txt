@@ -1,0 +1,937 @@
+GUIA DE ARCHIVOS DEL SISTEMA DE RESTAURANTE
+============================================
+
+Raiz del proyecto:
+C:\Users\20\Desktop\proyecto-software2_restaurante
+
+Aplicacion Laravel:
+C:\Users\20\Desktop\proyecto-software2_restaurante\sistema-web
+
+Esta guia documenta el codigo propio que se modifica para mantener el sistema.
+No enumera archivos generados dentro de vendor, node_modules, public/build,
+storage/framework o storage/logs: son dependencias, compilados y caches que no
+deben editarse manualmente.
+
+
+1. MAPA RAPIDO PARA CAMBIOS FRECUENTES
+======================================
+
+Dashboard y menu visible:
+- Vista: sistema-web\resources\views\home.blade.php
+- Controlador: sistema-web\app\Http\Controllers\HomeController.php
+- Modelo y horario: sistema-web\app\Models\MenuDia.php
+- Gestion: sistema-web\app\Http\Controllers\MenuDiaController.php
+- Modal de consumo: sistema-web\resources\views\consumos\modal-registro-rapido.blade.php
+
+Consumos y ventas desde el dashboard:
+- Logica: sistema-web\app\Http\Controllers\ConsumoController.php
+- Modelos: sistema-web\app\Models\Consumo.php y Venta.php
+- Pantallas: sistema-web\resources\views\consumos\
+- Rutas: sistema-web\routes\web.php
+
+Pagos y saldos:
+- Logica: sistema-web\app\Http\Controllers\PagoController.php
+- Modelos: sistema-web\app\Models\Pago.php, Consumo.php y Consumidor.php
+- Pantallas: sistema-web\resources\views\pagos\
+- Cuenta del cliente: sistema-web\resources\views\consumidores\show.blade.php
+
+Compras e inventario:
+- Compras: sistema-web\app\Http\Controllers\CompraController.php
+- Movimientos: sistema-web\app\Http\Controllers\MovimientoInventarioController.php
+- Modelos: Compra.php, CompraLinea.php, CompraProveedorPago.php,
+  MovimientoInventario.php e Insumo.php
+
+Usuarios, roles y acceso:
+- Rutas: sistema-web\routes\web.php
+- Autenticacion: sistema-web\config\auth.php
+- Roles: sistema-web\config\permission.php
+- Navegacion por rol: sistema-web\resources\views\layouts\navigation.blade.php
+
+Historial general:
+- Escritura: sistema-web\app\Helpers\HistorialHelper.php
+- Consulta: sistema-web\app\Http\Controllers\HistorialController.php
+- Pantalla: sistema-web\resources\views\historial\index.blade.php
+
+
+2. INTERFAZ: PLANTILLAS BLADE
+============================
+
+Estructura general
+------------------
+
+sistema-web\resources\views\layouts\app.blade.php
+Layout principal del personal. Carga cabecera, barra lateral, estilos, scripts y
+el contenido de cada pantalla autenticada.
+
+sistema-web\resources\views\layouts\navigation.blade.php
+Menu lateral del personal. Aqui se agrupan sectores y subsectores y se controla
+que opciones aparecen segun el rol.
+
+sistema-web\resources\views\layouts\app-cliente.blade.php
+Layout independiente del portal de consumidores. Evita mostrar herramientas
+administrativas al cliente.
+
+sistema-web\resources\views\layouts\guest.blade.php
+Estructura para login, recuperacion de contrasena y paginas sin sesion.
+
+Dashboard
+---------
+
+sistema-web\resources\views\home.blade.php
+Dashboard operativo. Presenta solo menus efectivos por fecha y horario, platos,
+precios y porciones restantes. Abre el registro rapido de consumo.
+
+sistema-web\resources\views\consumos\modal-registro-rapido.blade.php
+Modal del dashboard. Permite crear un pedido con varios platos del menu actual,
+limita cantidades al stock disponible y selecciona opcionalmente un consumidor.
+
+Menus del dia
+-------------
+
+sistema-web\resources\views\menus-dia\index.blade.php
+Listado, filtros, estado efectivo, publicacion y acceso al detalle de menus.
+
+sistema-web\resources\views\menus-dia\_form.blade.php
+Formulario compartido por crear y editar. Maneja fecha, horario, publicacion,
+platos y cantidades iniciales.
+
+sistema-web\resources\views\menus-dia\create.blade.php
+Contenedor de creacion; reutiliza _form.blade.php.
+
+sistema-web\resources\views\menus-dia\edit.blade.php
+Contenedor de edicion; carga datos existentes en _form.blade.php.
+
+sistema-web\resources\views\menus-dia\show.blade.php
+Detalle de cantidades iniciales, disponibles, vendidas, estado e historial de
+modificaciones del menu.
+
+Consumidores
+------------
+
+sistema-web\resources\views\consumidores\index.blade.php
+Listado de clientes con filtros, saldo pendiente y saldo adelantado.
+
+sistema-web\resources\views\consumidores\_form.blade.php
+Campos compartidos para datos personales, fuerza, institucion, grado y acceso.
+
+sistema-web\resources\views\consumidores\create.blade.php
+Pantalla para registrar un consumidor.
+
+sistema-web\resources\views\consumidores\edit.blade.php
+Pantalla para modificar un consumidor.
+
+sistema-web\resources\views\consumidores\show.blade.php
+Estado de cuenta individual: consumos, total, pagado, restante y estado.
+
+Consumos
+--------
+
+sistema-web\resources\views\consumos\index.blade.php
+Listado y filtros. Distingue pendiente, parcial, pagado y cancelado.
+
+sistema-web\resources\views\consumos\create.blade.php
+Registro tradicional de un consumo fuera del dashboard.
+
+sistema-web\resources\views\consumos\show.blade.php
+Detalle de un consumo y acceso al pago de su cliente.
+
+Pagos
+-----
+
+sistema-web\resources\views\pagos\index.blade.php
+Historial de pagos con filtros por cliente, modalidad, metodo y fecha.
+
+sistema-web\resources\views\pagos\create.blade.php
+Registro por consumos especificos, adelanto o periodo de dia, semana y mes.
+Carga saldos restantes, no los precios originales ya abonados.
+
+sistema-web\resources\views\pagos\show.blade.php
+Detalle del pago, importe aplicado, acumulado y saldo restante por consumo.
+
+Ventas
+------
+
+sistema-web\resources\views\ventas\index.blade.php
+Listado de ventas publicas y ventas vinculadas a consumidores.
+
+sistema-web\resources\views\ventas\create.blade.php
+Formulario de venta directa.
+
+sistema-web\resources\views\ventas\edit.blade.php
+Edicion de una venta existente.
+
+sistema-web\resources\views\ventas\show.blade.php
+Detalle de cantidades, precio y total de una venta.
+
+Recetas
+-------
+
+sistema-web\resources\views\recetas\index.blade.php
+Listado de platos. La visibilidad ya no se controla aqui; se controla en menus.
+
+sistema-web\resources\views\recetas\create.blade.php
+Creacion de receta, precio, preparacion, imagen e insumos necesarios.
+
+sistema-web\resources\views\recetas\edit.blade.php
+Edicion de receta y cantidades de insumos por porcion.
+
+sistema-web\resources\views\recetas\show.blade.php
+Detalle tecnico y costos de una receta.
+
+Insumos, categorias y unidades
+------------------------------
+
+sistema-web\resources\views\insumos\index.blade.php
+Inventario actual, busqueda, stock minimo, categoria y unidad.
+
+sistema-web\resources\views\insumos\create.blade.php
+Alta de insumos.
+
+sistema-web\resources\views\insumos\edit.blade.php
+Modificacion de insumos.
+
+sistema-web\resources\views\insumos\show.blade.php
+Detalle y movimientos relacionados con un insumo.
+
+sistema-web\resources\views\categorias\index.blade.php
+sistema-web\resources\views\categorias\create.blade.php
+sistema-web\resources\views\categorias\edit.blade.php
+Listado, creacion y edicion de categorias de insumos.
+
+sistema-web\resources\views\unidades\index.blade.php
+Administracion de unidades de medida.
+
+sistema-web\resources\views\categorias\rangos\index.blade.php
+Catalogos de rangos o grados usados para clasificar consumidores.
+
+Configuracion de consumidores
+-----------------------------
+
+sistema-web\resources\views\configuracion\catalogo.blade.php
+Pantalla reutilizable para fuerzas, instituciones, grados y tipos de comida.
+
+sistema-web\resources\views\configuracion\_modal.blade.php
+Modal compartido para crear o editar elementos de esos catalogos.
+
+Compras
+-------
+
+sistema-web\resources\views\compras\index.blade.php
+Ordenes, estados, proveedores, totales, abonos y saldos.
+
+sistema-web\resources\views\compras\create.blade.php
+Creacion de una orden con varias lineas de insumos.
+
+sistema-web\resources\views\compras\show.blade.php
+Detalle de lineas, cantidades recibidas y pagos al proveedor.
+
+Movimientos y proveedores
+-------------------------
+
+sistema-web\resources\views\movimientos\index.blade.php
+sistema-web\resources\views\movimientos\create.blade.php
+sistema-web\resources\views\movimientos\edit.blade.php
+Listado, creacion y correccion de entradas, salidas y ajustes de inventario.
+
+sistema-web\resources\views\proveedores\index.blade.php
+sistema-web\resources\views\proveedores\create.blade.php
+sistema-web\resources\views\proveedores\edit.blade.php
+Administracion de proveedores.
+
+Usuarios e historial
+--------------------
+
+sistema-web\resources\views\users\index.blade.php
+Gestion de usuarios internos y roles.
+
+sistema-web\resources\views\historial\index.blade.php
+Auditoria general por sector, usuario, rol, accion, detalle y fecha.
+
+Portal del cliente
+------------------
+
+sistema-web\resources\views\auth\cliente\login.blade.php
+Inicio de sesion exclusivo de consumidores.
+
+sistema-web\resources\views\cliente\inicio.blade.php
+Resumen del cliente autenticado.
+
+sistema-web\resources\views\cliente\consumos.blade.php
+Consumos y deuda del cliente.
+
+sistema-web\resources\views\cliente\pagos.blade.php
+Pagos y aplicaciones del cliente.
+
+Autenticacion del personal
+-------------------------
+
+sistema-web\resources\views\auth\login.blade.php
+sistema-web\resources\views\auth\register.blade.php
+sistema-web\resources\views\auth\verify.blade.php
+sistema-web\resources\views\auth\profile.blade.php
+sistema-web\resources\views\auth\passwords\confirm.blade.php
+sistema-web\resources\views\auth\passwords\email.blade.php
+sistema-web\resources\views\auth\passwords\reset.blade.php
+Pantallas de ingreso, registro, verificacion, perfil y recuperacion de acceso.
+
+Reportes y predicciones
+-----------------------
+
+sistema-web\resources\views\reportes\index.blade.php
+Selector y resumen de reportes.
+
+sistema-web\resources\views\reportes\parcial_semanal.blade.php
+sistema-web\resources\views\reportes\parcial_mensual.blade.php
+sistema-web\resources\views\reportes\parcial_anual.blade.php
+Resultados agrupados por periodo.
+
+sistema-web\resources\views\reportes\pdf_movimientos.blade.php
+sistema-web\resources\views\reportes\pdf_ventas.blade.php
+Plantillas de exportacion PDF.
+
+sistema-web\resources\views\predicciones.blade.php
+Entrada principal a funciones predictivas.
+
+sistema-web\resources\views\livewire\prediccionuno.blade.php
+sistema-web\resources\views\livewire\predicciondos.blade.php
+sistema-web\resources\views\livewire\predicciondesperdicio.blade.php
+Componentes interactivos de prediccion.
+
+sistema-web\resources\views\livewire\calculoinsumo.blade.php
+Calculo interactivo de necesidades de insumos.
+
+sistema-web\resources\views\livewire\reportes-guardar.blade.php
+Creacion y almacenamiento de reportes personalizados.
+
+sistema-web\resources\views\livewire\notificaciones.blade.php
+Componente de alertas de stock.
+
+sistema-web\resources\views\notificaciones\index.blade.php
+Listado completo de notificaciones.
+
+
+3. FRONTEND: ESTILOS, JAVASCRIPT Y RECURSOS
+===========================================
+
+sistema-web\resources\js\app.js
+Punto de entrada JavaScript compilado por Vite.
+
+sistema-web\resources\js\bootstrap.js
+Inicializa librerias HTTP y configuracion comun del navegador.
+
+sistema-web\resources\js\game.js
+Script heredado; revisar referencias antes de modificar o retirar.
+
+sistema-web\resources\css\app.css
+Estilos globales propios de la aplicacion.
+
+sistema-web\resources\sass\app.scss
+Punto principal que importa los modulos SCSS.
+
+sistema-web\resources\sass\_variables.scss
+Colores, tamanos y variables reutilizables.
+
+sistema-web\resources\sass\_mixin.scss
+Funciones y mezclas SCSS reutilizables.
+
+sistema-web\resources\sass\_common.scss
+sistema-web\resources\sass\_default.scss
+Reglas base y normalizacion visual.
+
+sistema-web\resources\sass\_sidebar.scss
+Estilos de navegacion lateral.
+
+sistema-web\resources\sass\alerts\_alerts.scss
+sistema-web\resources\sass\auth\_signin.scss
+sistema-web\resources\sass\auth\_signup.scss
+sistema-web\resources\sass\buttons\_buttons.scss
+sistema-web\resources\sass\cards\_cards.scss
+sistema-web\resources\sass\forms\_form-elements.scss
+sistema-web\resources\sass\header\_header.scss
+sistema-web\resources\sass\icons\_icons.scss
+sistema-web\resources\sass\notification\_notification.scss
+sistema-web\resources\sass\tables\_tables.scss
+sistema-web\resources\sass\typography\_typography.scss
+Modulos visuales por tipo de componente.
+
+sistema-web\public\js\main.js
+JavaScript publico del tema base. Cambiar solo si el comportamiento es global.
+
+sistema-web\public\css\lineicons.css
+sistema-web\public\fonts\LineIcons.*
+Biblioteca local de iconos usada por las clases lni.
+
+sistema-web\public\images\
+Imagenes estaticas, fondos y logos. Las imagenes subidas por usuarios se guardan
+en storage/app/public y no forman parte del codigo.
+
+sistema-web\vite.config.js
+Configura entradas y salida de Vite.
+
+sistema-web\tailwind.config.js
+sistema-web\postcss.config.js
+Configuracion de procesamiento CSS.
+
+sistema-web\package.json
+sistema-web\package-lock.json
+Dependencias frontend y versiones exactas instaladas.
+
+
+4. BACKEND: RUTAS Y CONTROLADORES
+=================================
+
+sistema-web\routes\web.php
+Mapa central de URL, controlador, nombre de ruta, autenticacion y roles.
+
+sistema-web\routes\console.php
+Tareas programadas y comandos de consola modernos.
+
+sistema-web\app\Http\Controllers\HomeController.php
+Obtiene menus efectivos, consumidores y datos del dashboard.
+
+sistema-web\app\Http\Controllers\MenuDiaController.php
+CRUD de menus, platos, cantidades, publicacion e historial detallado.
+
+sistema-web\app\Http\Controllers\ConsumoController.php
+Registro de pedidos, ventas, consumos, descuento de porciones e inventario.
+
+sistema-web\app\Http\Controllers\PagoController.php
+Pagos especificos, periodos, adelantos, distribucion y saldos parciales.
+
+sistema-web\app\Http\Controllers\ConsumidorController.php
+CRUD, busqueda y estado de cuenta de consumidores.
+
+sistema-web\app\Http\Controllers\ClienteController.php
+Portal autenticado del consumidor.
+
+sistema-web\app\Http\Controllers\CompraController.php
+Ordenes con lineas, totales y abonos al proveedor.
+
+sistema-web\app\Http\Controllers\VentaController.php
+Ventas directas tradicionales y sus movimientos.
+
+sistema-web\app\Http\Controllers\RecetaController.php
+CRUD de recetas y relacion con insumos.
+
+sistema-web\app\Http\Controllers\InsumoController.php
+CRUD de insumos y consulta de existencias.
+
+sistema-web\app\Http\Controllers\MovimientoInventarioController.php
+Entradas, salidas, conversiones y ajustes de inventario.
+
+sistema-web\app\Http\Controllers\CategoriaController.php
+sistema-web\app\Http\Controllers\UnidadMedidaController.php
+sistema-web\app\Http\Controllers\ProveedorController.php
+CRUD de categorias, unidades y proveedores.
+
+sistema-web\app\Http\Controllers\ConfiguracionConsumidoresController.php
+Catalogos internos de fuerzas, instituciones, grados y tipos de comida.
+
+sistema-web\app\Http\Controllers\HistorialController.php
+Filtros, paginacion y consulta de auditoria.
+
+sistema-web\app\Http\Controllers\ReporteController.php
+sistema-web\app\Http\Controllers\ReportesController.php
+Generacion y exportacion de reportes. Existen dos controladores heredados; revisar
+la ruta concreta antes de modificar uno.
+
+sistema-web\app\Http\Controllers\PrediccionesController.php
+Comunicacion del sistema web con el servicio de IA.
+
+sistema-web\app\Http\Controllers\NotificationsController.php
+Consulta de alertas y notificaciones.
+
+sistema-web\app\Http\Controllers\UserController.php
+sistema-web\app\Http\Controllers\UsuarioController.php
+Gestion de usuarios. Verificar routes/web.php para saber cual usa cada pantalla.
+
+sistema-web\app\Http\Controllers\ProfileController.php
+Actualizacion de perfil.
+
+sistema-web\app\Http\Controllers\EmailTestController.php
+Diagnostico del subsistema de correo.
+
+sistema-web\app\Http\Controllers\Auth\LoginController.php
+sistema-web\app\Http\Controllers\Auth\RegisterController.php
+sistema-web\app\Http\Controllers\Auth\ForgotPasswordController.php
+sistema-web\app\Http\Controllers\Auth\ResetPasswordController.php
+sistema-web\app\Http\Controllers\Auth\ConfirmPasswordController.php
+sistema-web\app\Http\Controllers\Auth\VerificationController.php
+Autenticacion del personal.
+
+sistema-web\app\Http\Controllers\Auth\Cliente\LoginController.php
+Autenticacion separada de consumidores.
+
+sistema-web\app\Http\Middleware\CheckRole.php
+Bloquea accesos segun roles autorizados.
+
+sistema-web\app\Http\Requests\ProfileUpdateRequest.php
+Validacion dedicada para cambios de perfil.
+
+
+5. BACKEND: MODELOS Y REGLAS DE NEGOCIO
+=======================================
+
+sistema-web\app\Models\MenuDia.php
+Fecha, horario, publicacion efectiva, recetas, cantidades e historial JSON.
+
+sistema-web\app\Models\Consumo.php
+Deuda por plato. Calcula monto pagado y saldo pendiente.
+
+sistema-web\app\Models\Pago.php
+Pago del consumidor y aplicaciones a consumos mediante pagos_consumos.
+
+sistema-web\app\Models\Consumidor.php
+Cliente, clasificaciones, consumos, pagos, deuda general y saldo adelantado.
+
+sistema-web\app\Models\Venta.php
+Ingreso por cada plato vendido, con o sin consumidor.
+
+sistema-web\app\Models\Receta.php
+Plato, precio, preparacion e insumos gastados por cantidad.
+
+sistema-web\app\Models\Insumo.php
+Articulo de inventario y calculo de existencia desde movimientos.
+
+sistema-web\app\Models\MovimientoInventario.php
+Entrada o salida vinculada a compra, venta, receta o ajuste.
+
+sistema-web\app\Models\Compra.php
+Orden, proveedor, total, monto abonado y saldo.
+
+sistema-web\app\Models\CompraLinea.php
+Insumo, unidad, cantidad y costo de cada linea de compra.
+
+sistema-web\app\Models\CompraProveedorPago.php
+Abonos parciales asociados a una compra.
+
+sistema-web\app\Models\Categoria.php
+sistema-web\app\Models\UnidadMedida.php
+sistema-web\app\Models\ConversionesUnidades.php
+sistema-web\app\Models\Proveedor.php
+Catalogos y relaciones de inventario/compras.
+
+sistema-web\app\Models\Fuerza.php
+sistema-web\app\Models\Institucion.php
+sistema-web\app\Models\Grado.php
+sistema-web\app\Models\TipoComida.php
+Clasificaciones configurables de consumidores y menus.
+
+sistema-web\app\Models\User.php
+Usuario interno autenticable y roles Spatie.
+
+sistema-web\app\Models\Historial.php
+Representacion Eloquent de la auditoria general.
+
+sistema-web\app\Models\PlanProduccion.php
+Planificaciones de produccion.
+
+sistema-web\app\Models\ReporteMovimiento.php
+sistema-web\app\Models\ReportePersonalizado.php
+Datos guardados de reportes.
+
+
+6. HELPERS, SERVICIOS Y NOTIFICACIONES
+======================================
+
+sistema-web\app\Helpers\HistorialHelper.php
+Punto unico para escribir sector, accion, usuario, rol y detalle resumido.
+
+sistema-web\app\Helpers\ConversionesHelper.php
+Conversion de unidades para compras e inventario.
+
+sistema-web\app\Helpers\GlobalFunctions.php
+Funciones auxiliares globales heredadas.
+
+sistema-web\app\Notifications\StockBajo.php
+sistema-web\app\Notifications\StockRepuesto.php
+Mensajes cuando el inventario cruza limites de stock.
+
+sistema-web\app\Services\EmailCommandParser.php
+Interpreta comandos recibidos por correo y ejecuta operaciones autorizadas.
+
+sistema-web\app\Services\EmailServiceInterface.php
+Contrato comun del servicio de correo.
+
+sistema-web\app\Services\EmailService.php
+sistema-web\app\Services\EmailServiceMock.php
+sistema-web\app\Services\NativeEmailService.php
+sistema-web\app\Services\NativeIMAPService.php
+sistema-web\app\Services\NativeSMTPService.php
+Implementaciones reales, simuladas, IMAP y SMTP del correo.
+
+sistema-web\app\Providers\AppServiceProvider.php
+sistema-web\app\Providers\EmailServiceProvider.php
+sistema-web\app\Providers\VoltServiceProvider.php
+Registro de servicios, dependencias y componentes al iniciar Laravel.
+
+
+7. COMANDOS DE CONSOLA Y CORREO
+===============================
+
+sistema-web\app\Console\Kernel.php
+Registro heredado de tareas programadas.
+
+sistema-web\app\Console\Commands\EmailScheduler.php
+sistema-web\app\Console\Commands\ProcessEmailCommands.php
+sistema-web\app\Console\Commands\ProcessEmailsCommand.php
+Procesamiento periodico de correos y comandos.
+
+sistema-web\app\Console\Commands\ProcessEmailsMockCommand.php
+Pruebas sin servidor de correo real.
+
+sistema-web\app\Console\Commands\SetupEmailSystemCommand.php
+Preparacion del subsistema de correo.
+
+sistema-web\app\Console\Commands\TestDbConnection.php
+sistema-web\app\Console\Commands\TestNativeEmailCommand.php
+sistema-web\app\Console\Commands\TestVentasData.php
+Diagnosticos manuales de base, correo y ventas.
+
+sistema-web\app\Console\Commands\MigrarDatosPostgres.php
+Herramienta heredada de migracion; no usar para cambios normales del esquema.
+
+sistema-web\EmailSystemComplete.java
+sistema-web\run_email_complete.bat
+sistema-web\email_config.bat
+sistema-web\diagnostico_email.bat
+Servicio externo Java y scripts Windows del sistema de correo completo.
+
+
+8. BASE DE DATOS
+================
+
+SCRIPT_BASE_DATOS_COMPLETA.sql
+Script SQL de referencia. Las instalaciones Laravel deben respetar tambien las
+migraciones recientes para no perder consumos, pagos, menus y compras avanzadas.
+
+sistema-web\database\migrations\0001_01_01_000001_create_cache_table.php
+sistema-web\database\migrations\0001_01_01_000002_create_jobs_table.php
+Infraestructura de cache y colas.
+
+sistema-web\database\migrations\2025_01_31_031025_create_user_table.php
+Crea usuarios internos.
+
+sistema-web\database\migrations\2025_01_31_171723_create_unidad_medidas_table.php
+sistema-web\database\migrations\2025_01_31_172610_create_categorias_table.php
+sistema-web\database\migrations\2025_01_31_172611_create_proveedors_table.php
+sistema-web\database\migrations\2025_01_31_172612_create_insumos_table.php
+Estructura inicial de inventario y proveedores.
+
+sistema-web\database\migrations\2025_01_31_225247_create_recetas_table.php
+sistema-web\database\migrations\2025_02_03_233120__create_recetas_insumos.php
+Recetas y su composicion.
+
+sistema-web\database\migrations\2025_02_04_010324_create_ventas_table.php
+sistema-web\database\migrations\2025_02_04_010337_create_compras_table.php
+sistema-web\database\migrations\2025_02_04_021211_create_movimiento_inventarios_table.php
+Ventas, compras y movimientos iniciales.
+
+sistema-web\database\migrations\2025_04_27_011819_create_sessions_table.php
+sistema-web\database\migrations\2025_07_02_210756_create_permission_tables.php
+sistema-web\database\migrations\2025_07_08_201455_create_notifications_table.php
+Sesiones, roles/permisos y notificaciones.
+
+sistema-web\database\migrations\2025_07_09_154712_add_precio_to_recetas_table.php
+sistema-web\database\migrations\2025_07_09_235220_add_visible_to_recetas_table.php
+Ajustes historicos de recetas. El campo visible se conserva por compatibilidad,
+pero la publicacion actual depende de menus del dia.
+
+sistema-web\database\migrations\2025_07_10_003519_create_historial_table.php
+sistema-web\database\migrations\2025_07_14_150325_create_historials_table.php
+sistema-web\database\migrations\2025_07_14_151621_add_fecha_hora_to_historial_table.php
+sistema-web\database\migrations\2025_07_14_161742_remove_seccion_from_historial_table.php
+sistema-web\database\migrations\2025_07_14_162251_fix_historial_table_for_helper.php
+sistema-web\database\migrations\2025_07_14_162857_fix_historial_table_for_helper.php
+sistema-web\database\migrations\2025_07_14_174948_add_seccion_to_historial_table.php
+Evolucion historica de la auditoria. No consolidar sin probar una instalacion vacia.
+
+sistema-web\database\migrations\2025_11_03_000000_create_planes_produccion_table.php
+sistema-web\database\migrations\2025_11_03_000001_add_nombre_to_planes_produccion.php
+sistema-web\database\migrations\2025_11_03_043342_create_reportes_personalizados_table.php
+Planes y reportes guardados.
+
+sistema-web\database\migrations\2025_11_03_200000_add_fields_to_compras.php
+sistema-web\database\migrations\2025_11_19_040408_add_proveedor_id_to_compras_table.php
+Ampliaciones historicas de compras.
+
+sistema-web\database\migrations\2025_11_19_010018_create_conversiones_unidades_table.php
+sistema-web\database\migrations\2025_11_19_010030_add_unidad_fields_to_movimiento_inventarios_table.php
+sistema-web\database\migrations\2025_11_19_020000_add_costo_estandar_to_insumos_table.php
+sistema-web\database\migrations\2025_11_19_120500_add_receta_id_to_movimiento_inventarios_table.php
+Conversiones, costos y trazabilidad de inventario.
+
+sistema-web\database\migrations\2025_11_19_043758_create_reporte_movimientos_table.php
+Persistencia de reportes de movimientos.
+
+sistema-web\database\migrations\2026_06_27_000001_create_consumer_catalogs.php
+sistema-web\database\migrations\2026_06_27_000002_create_consumidores_table.php
+sistema-web\database\migrations\2026_06_27_000003_create_consumos_and_pagos_tables.php
+Fuerzas, instituciones, grados, consumidores, consumos y pagos.
+
+sistema-web\database\migrations\2026_06_27_000004_remove_unverified_consumer_labels.php
+Elimina etiquetas de consumidor que no estaban verificadas historicamente.
+
+sistema-web\database\migrations\2026_06_27_000005_restore_menu_dia_tracking.php
+Cantidades iniciales/disponibles, horarios y vinculo consumo-menu.
+
+sistema-web\database\migrations\2026_06_27_000006_restore_advanced_purchases.php
+Lineas y abonos de compras avanzadas.
+
+sistema-web\database\migrations\2026_06_28_000001_restore_advanced_sales_fields.php
+Cliente, tipo de comida, fecha, hora y observaciones de ventas.
+
+sistema-web\database\migrations\2026_06_28_000002_allow_partial_consumption_status.php
+Permite el estado parcial requerido por pagos incompletos.
+
+Seeders y factories
+-------------------
+
+sistema-web\database\seeders\DatabaseSeeder.php
+Punto de entrada de datos de demostracion.
+
+sistema-web\database\seeders\CategoriaSeeder.php
+sistema-web\database\seeders\ConversionesUnidadesSeeder.php
+sistema-web\database\seeders\InsumoSeeder.php
+sistema-web\database\seeders\MovimientoSeeder.php
+sistema-web\database\seeders\ProveedorSeeder.php
+sistema-web\database\seeders\RecetaSeeder.php
+sistema-web\database\seeders\UnidadMedidaSeeder.php
+sistema-web\database\seeders\VentaSeeder.php
+Datos iniciales por modulo. No ejecutar en produccion sin revisar duplicados.
+
+sistema-web\database\factories\UserFactory.php
+Genera usuarios para pruebas.
+
+
+9. CONFIGURACION Y ARRANQUE
+==========================
+
+sistema-web\.env
+Configuracion privada local: base, correo, URL y zona horaria. No compartir.
+
+sistema-web\.env.example
+Plantilla sin credenciales para otra instalacion.
+
+sistema-web\artisan
+Ejecutable de comandos Laravel.
+
+sistema-web\bootstrap\app.php
+Construccion de la aplicacion, middleware y manejo de excepciones.
+
+sistema-web\bootstrap\providers.php
+Lista de proveedores cargados.
+
+sistema-web\config\app.php
+Nombre, entorno, zona horaria y configuracion general.
+
+sistema-web\config\auth.php
+Guards y proveedores de personal y consumidores.
+
+sistema-web\config\database.php
+Conexiones PostgreSQL/MySQL segun entorno.
+
+sistema-web\config\permission.php
+Tablas y comportamiento de roles Spatie.
+
+sistema-web\config\cache.php
+sistema-web\config\session.php
+sistema-web\config\queue.php
+sistema-web\config\logging.php
+Cache, sesiones, colas y logs.
+
+sistema-web\config\filesystems.php
+Discos de imagenes y archivos publicos.
+
+sistema-web\config\mail.php
+sistema-web\config\services.php
+Correo y credenciales de servicios externos.
+
+sistema-web\config\adminlte.php
+Configuracion heredada del tema AdminLTE.
+
+sistema-web\composer.json
+sistema-web\composer.lock
+Dependencias PHP y versiones exactas.
+
+sistema-web\phpunit.xml
+Entorno de pruebas.
+
+
+10. SERVICIO DE INTELIGENCIA ARTIFICIAL
+=======================================
+
+servicio-ia\flask_service.py
+API Flask que recibe solicitudes de prediccion desde Laravel.
+
+servicio-ia\train_model.py
+Entrena y guarda el modelo.
+
+servicio-ia\test.py
+Pruebas manuales del servicio.
+
+servicio-ia\requirements.txt
+Dependencias Python.
+
+servicio-ia\modelo_consumo.pkl
+Modelo entrenado; se regenera mediante train_model.py.
+
+servicio-ia\category_mappings.pkl
+Codificacion de categorias usada por el modelo.
+
+servicio-ia\Dockerfile
+Imagen del servicio.
+
+servicio-ia\docker-compose.yml
+Arranque del contenedor y puertos.
+
+
+11. PRUEBAS AUTOMATICAS
+=======================
+
+sistema-web\tests\TestCase.php
+Base de pruebas Laravel.
+
+sistema-web\tests\Pest.php
+Configuracion de Pest.
+
+sistema-web\tests\Feature\DashboardConsumoTest.php
+Ventas publicas, consumos con cliente y limite de porciones.
+
+sistema-web\tests\Feature\MenuDashboardVisibilityTest.php
+Visibilidad del menu dentro y fuera de horario.
+
+sistema-web\tests\Feature\MenuHistoryTest.php
+Registro de modificaciones del menu.
+
+sistema-web\tests\Feature\PagoParcialTest.php
+Aplicacion parcial y saldo restante.
+
+sistema-web\tests\Feature\ExampleTest.php
+sistema-web\tests\Unit\ExampleTest.php
+Pruebas base del framework; pueden reemplazarse por casos reales futuros.
+
+
+12. DOCUMENTACION DEL REPOSITORIO
+=================================
+
+README.MD
+Guia principal para instalar y ejecutar web, IA y correo.
+
+sistema-web\README.md
+README original de Laravel; tiene menor prioridad que README.MD de la raiz.
+
+BASE_DE_DATOS_README.md
+Explicacion general del paquete de base de datos.
+
+INSTRUCCIONES_BASE_DATOS.md
+Comandos historicos de importacion y configuracion.
+
+DIAGRAMA_BASE_DATOS.md
+Descripcion textual de entidades y relaciones.
+
+DIAGRAMA_ER.puml
+Fuente PlantUML del diagrama entidad-relacion.
+
+Diagrama_Secuencia_Insumos.md
+Explicacion del flujo de insumos.
+
+Diagrama_Secuencia_Insumos.puml
+Fuente PlantUML del diagrama de secuencia.
+
+CONFIGURACION_PREDICCION.md
+Instalacion y conexion del servicio de IA.
+
+CAMBIOS_REALIZADOS.md
+Registro historico de modificaciones anteriores; puede no reflejar lo ultimo.
+
+
+12.1 ARCHIVOS SECUNDARIOS Y HEREDADOS
+-------------------------------------
+
+sistema-web\resources\views\welcome.blade.php
+Pantalla publica inicial heredada de Laravel. La ruta principal actual suele
+redirigir al login o dashboard; revisar web.php antes de editarla.
+
+sistema-web\resources\views\about.blade.php
+Pagina informativa secundaria.
+
+sistema-web\resources\views\email-test\index.blade.php
+Interfaz de diagnostico del correo.
+
+sistema-web\resources\views\livewire\counter.blade.php
+sistema-web\resources\views\livewire\test.blade.php
+sistema-web\app\Livewire\Test.php
+Componentes de ejemplo o diagnostico Livewire; no contienen reglas centrales.
+
+sistema-web\resources\views\livewire\usuario.blade.php
+Gestion interactiva heredada de usuarios. Confirmar si la ruta usa esta vista o
+users/index.blade.php antes de cambiarla.
+
+sistema-web\app\Http\Controllers\Controller.php
+Clase base de la que heredan los controladores Laravel.
+
+sistema-web\app\Http\Kernel.php
+Kernel HTTP heredado: registra middleware global y aliases en versiones previas.
+La configuracion moderna tambien vive en bootstrap/app.php.
+
+sistema-web\arreglar_secuencias.php
+sistema-web\migrar_rapido.php
+sistema-web\migrate_data.php
+sistema-web\sync_pg_data.php
+Utilidades puntuales de migracion y reparacion de secuencias. No ejecutarlas en
+produccion sin respaldo; no forman parte del arranque diario.
+
+sistema-web\public\index.php
+Entrada HTTP que recibe todas las solicitudes y arranca Laravel.
+
+sistema-web\public\robots.txt
+Instrucciones para rastreadores web.
+
+sistema-web\public\favicon.ico
+Icono mostrado por el navegador.
+
+sistema-web\public\data.csv
+sistema-web\public\exports\data.csv
+Datos/exportaciones historicos. No usarlos como fuente principal: la fuente real
+es la base de datos.
+
+sistema-web\storage\app\.gitignore
+sistema-web\storage\app\private\.gitignore
+sistema-web\storage\app\public\.gitignore
+Marcadores que conservan directorios de almacenamiento vacios en Git.
+
+
+13. REGLAS PARA MODIFICAR SIN ROMPER EL SISTEMA
+===============================================
+
+1. Una pantalla Blade no debe calcular saldos por su cuenta. Usar los metodos de
+   Consumo y Consumidor para que Pagos y Consumidores siempre coincidan.
+
+2. El dashboard no debe cargar recetas sueltas. Debe usar las recetas asociadas
+   al MenuDia efectivo y su cantidad pivot disponible.
+
+3. Toda venta desde el dashboard crea Venta. Si hay consumidor tambien crea
+   Consumo pendiente y posteriormente los pagos se aplican a ese consumo.
+
+4. Nunca descontar porciones sin bloquear el MenuDia en una transaccion. Esto
+   evita vender dos veces la ultima porcion.
+
+5. visible_para_clientes es permiso de publicacion. La visibilidad real tambien
+   depende de activo, fecha y horario.
+
+6. Toda operacion relevante debe llamar HistorialHelper::registrar con sector,
+   accion y un detalle legible, evitando IDs sin nombres.
+
+7. Los cambios de esquema se hacen con una migracion nueva. No editar una
+   migracion ya ejecutada para corregir una base existente.
+
+8. Despues de cambiar PHP o Blade ejecutar:
+   php artisan view:clear
+   php artisan test
+
+9. Despues de cambiar JavaScript/CSS compilado ejecutar:
+   npm run build
+
+10. No editar archivos de storage/framework/views: son copias compiladas y se
+    reemplazan automaticamente.

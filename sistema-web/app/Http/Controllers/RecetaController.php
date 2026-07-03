@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Receta;
 use App\Models\Insumo;
+use App\Models\InsumoPresentacion;
 use Illuminate\Http\Request;
 use App\Helpers\HistorialHelper;
 
@@ -38,8 +39,8 @@ class RecetaController extends Controller
      */
     public function create()
     {
-        $insumos = Insumo::all();
-        return view('recetas.create', compact('insumos'));
+        $presentaciones=InsumoPresentacion::with(['insumo','unidadStockRelacion'])->where('activa',true)->orderBy('nombre')->get();
+        return view('recetas.create', compact('presentaciones'));
     }
 
     /**
@@ -53,7 +54,7 @@ class RecetaController extends Controller
             'indicaciones' => 'required|string',
             'tiempo_preparacion' => 'required|integer|min:1',
             'insumos' => 'required|array|min:1',
-            'insumos.*.id' => 'required|exists:insumos,id',
+            'insumos.*.presentacion_id' => 'required|exists:insumo_presentaciones,id',
             'insumos.*.cantidad' => 'required|numeric|min:0',
             'precio' => 'required|numeric|min:0',
             'imagen' => 'nullable|image|max:2048',
@@ -71,7 +72,7 @@ class RecetaController extends Controller
         }
         $receta = Receta::create($data);
         foreach ($request->insumos as $insumo) {
-            $receta->insumos()->attach($insumo['id'], ['cantidad' => $insumo['cantidad']]);
+            $presentacion=InsumoPresentacion::findOrFail($insumo['presentacion_id']);$receta->insumos()->attach($presentacion->insumo_id, ['presentacion_id'=>$presentacion->id,'cantidad' => $insumo['cantidad']]);
         }
         HistorialHelper::registrar('Creó receta', 'Receta: ' . $receta->nombre, 'Recetas');
         return redirect()->route('recetas.index')->with('success', 'Receta creada correctamente');
@@ -90,8 +91,8 @@ class RecetaController extends Controller
      */
     public function edit(Receta $receta)
     {
-        $insumos = Insumo::all();
-        return view('recetas.edit', compact('receta', 'insumos'));
+        $presentaciones=InsumoPresentacion::with(['insumo','unidadStockRelacion'])->where('activa',true)->orderBy('nombre')->get();
+        return view('recetas.edit', compact('receta', 'presentaciones'));
     }
 
     /**
@@ -105,7 +106,7 @@ class RecetaController extends Controller
             'indicaciones' => 'required|string',
             'tiempo_preparacion' => 'required|integer|min:1',
             'insumos' => 'required|array|min:1',
-            'insumos.*.id' => 'required|exists:insumos,id',
+            'insumos.*.presentacion_id' => 'required|exists:insumo_presentaciones,id',
             'insumos.*.cantidad' => 'required|numeric|min:0',
             'precio' => 'required|numeric|min:0',
             'imagen' => 'nullable|image|max:2048',
@@ -125,9 +126,7 @@ class RecetaController extends Controller
             $data['imagen'] = $request->file('imagen')->store('recetas', 'public');
         }
         $receta->update($data);
-        $insumosSync = collect($request->insumos)->mapWithKeys(function ($insumo) {
-            return [$insumo['id'] => ['cantidad' => $insumo['cantidad']]];
-        })->all();
+        $insumosSync = collect($request->insumos)->mapWithKeys(function ($insumo) {$p=InsumoPresentacion::findOrFail($insumo['presentacion_id']);return [$p->insumo_id=>['presentacion_id'=>$p->id,'cantidad'=>$insumo['cantidad']]];})->all();
         $receta->insumos()->sync($insumosSync);
         HistorialHelper::registrar('Actualizó receta', 'Receta: ' . $receta->nombre, 'Recetas');
         return redirect()->route('recetas.index')->with('success', 'Receta actualizada correctamente');
@@ -153,15 +152,4 @@ class RecetaController extends Controller
         return redirect()->route('recetas.index')->with('success', 'Receta eliminada correctamente');
     }
 
-    public function toggleVisible(Request $request, Receta $receta)
-    {
-        $receta->visible = !$receta->visible;
-        $receta->save();
-        HistorialHelper::registrar(
-            $receta->visible ? 'Hizo visible receta en dashboard' : 'Ocultó receta del dashboard',
-            'Receta: ' . $receta->nombre,
-            'Dashboard'
-        );
-        return redirect()->route('recetas.index')->with('success', 'Visibilidad de la receta actualizada correctamente');
-    }
 }

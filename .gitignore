@@ -1,0 +1,31 @@
+# Laravel
+sistema-web/vendor/
+sistema-web/.env
+sistema-web/.env.backup
+sistema-web/.env.production
+sistema-web/storage/logs/*.log
+sistema-web/bootstrap/cache/*.php
+sistema-web/public/build/
+sistema-web/public/hot
+sistema-web/public/storage
+
+# Node / Vite
+sistema-web/node_modules/
+sistema-web/npm-debug.log
+sistema-web/yarn-error.log
+sistema-web/pnpm-lock.yaml
+
+# Python
+servicio-ia/__pycache__/
+servicio-ia/.venv/
+servicio-ia/venv/
+servicio-ia/env/
+*.pyc
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/
+.idea/

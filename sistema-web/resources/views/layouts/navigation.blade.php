@@ -1,151 +1,19 @@
+@php
+$usuariosAbierto=request()->routeIs('users.*')||request()->routeIs('consumidores.*')||request()->routeIs('proveedores.*')||request()->routeIs('categorias.rangos.*');
+$productosAbierto=request()->routeIs('insumos.*')||request()->routeIs('categorias.insumos.*')||request()->routeIs('categorias.unidades.*')||request()->routeIs('formatos-empaque.*')||request()->routeIs('marcas.*')||request()->routeIs('notificaciones.index');
+$produccionAbierto=request()->routeIs('predicciones.*')||request()->routeIs('menus-dia.*')||request()->routeIs('recetas.*')||request()->routeIs('tipos-comida.*')||request()->routeIs('tipos-produccion.*');
+$inventarioAbierto=request()->routeIs('compras.*')||request()->routeIs('movimientos.*');
+$operacionesAbierto=request()->routeIs('ventas.*')||request()->routeIs('consumos.*')||request()->routeIs('pagos.*');
+$configuracionAbierta=request()->routeIs('configuraciones.*');
+@endphp
 <ul>
-    <li class="nav-item @if (request()->routeIs('home')) active @endif">
-        <a href="{{ route('home') }}">
-            <span class="icon">
-                <i class="lni lni-restaurant"></i>
-            </span>
-            <span class="text">{{ __('Dashboard') }}</span>
-        </a>
-    </li>
-
-    @hasanyrole('admin|director')
-    <li class="nav-item @if (request()->routeIs('predicciones.index')) active @endif">
-        <a href="{{ route('predicciones.index') }}">
-            <span class="icon">
-                <i class="lni lni-reddit"></i>
-            </span>
-            <span class="text">{{ __('Predicciones') }}</span>
-        </a>
-    </li>
-    @endhasanyrole
-
-    @hasanyrole('admin|cajero|director')
-    <li class="nav-item @if (request()->routeIs('ventas.index') || request()->routeIs('ventas.create') || request()->routeIs('ventas.edit')) active @endif">
-        <a href="{{ route('ventas.index') }}">
-            <span class="icon">
-                <i class="lni lni-dollar"></i>
-            </span>
-            <span class="text">{{ __('Ventas') }}</span>
-        </a>
-    </li>
-    @endhasanyrole
-
-    @hasanyrole('admin|director|cocinero|ayudante_cocina')
-    <li class="nav-item @if (request()->routeIs('movimientos.index') ||
-            request()->routeIs('movimientos.create') ||
-            request()->routeIs('movimientos.edit')) active @endif">
-        <a href="{{ route('movimientos.index') }}">
-            <span class="icon">
-                <i class="lni lni-cart"></i>
-            </span>
-            <span class="text">{{ __('Movimientos') }}</span>
-        </a>
-    </li>
-    @endhasanyrole
-
-    @hasanyrole('admin|cocinero|director|ayudante_cocina')
-    <li class="nav-item @if (request()->routeIs('recetas.index') ||
-            request()->routeIs('recetas.create') ||
-            request()->routeIs('recetas.edit') ||
-            request()->routeIs('recetas.show')) active @endif">
-        <a href="{{ route('recetas.index') }}">
-            <span class="icon">
-                <i class="lni lni-service"></i>
-            </span>
-            <span class="text">{{ __('Recetas') }}</span>
-        </a>
-    </li>
-    @endhasanyrole
-
-    @hasanyrole('admin|cocinero|director|ayudante_cocina')
-    <li class="nav-item @if (request()->routeIs('insumos.index') || request()->routeIs('insumos.create') || request()->routeIs('insumos.edit')) active @endif">
-        <a href="{{ route('insumos.index') }}">
-            <span class="icon">
-                <i class="lni lni-sprout"></i>
-            </span>
-            <span class="text">{{ __('Insumos') }}</span>
-        </a>
-    </li>
-    @endhasanyrole
-
-    @hasanyrole('admin|cocinero|director|ayudante_cocina')
-    <li class="nav-item @if (request()->routeIs('proveedores.index') ||
-            request()->routeIs('proveedores.create') ||
-            request()->routeIs('proveedores.edit')) active @endif">
-        <a href="{{ route('proveedores.index') }}">
-            <span class="icon">
-                <i class="lni lni-delivery"></i>
-            </span>
-            <span class="text">{{ __('Proveedores') }}</span>
-        </a>
-    </li>
-    @endhasanyrole
-
-    @hasanyrole('admin|cocinero|director')
-    <li class="nav-item @if (request()->routeIs('categorias.index') ||
-            request()->routeIs('categorias.create') ||
-            request()->routeIs('categorias.edit')) active @endif">
-        <a href="{{ route('categorias.index') }}">
-            <span class="icon">
-                <i class="lni lni-tag"></i>
-            </span>
-            <span class="text">{{ __('Categorías') }}</span>
-        </a>
-    </li>
-    @endhasanyrole
-
-    @hasanyrole('admin|cocinero|director')
-    <li class="nav-item @if (request()->routeIs('unidades.index')) active @endif">
-        <a href="{{ route('unidades.index') }}">
-            <span class="icon">
-                <i class="lni lni-ruler-alt"></i>
-            </span>
-            <span class="text">{{ __('Unidades de medida') }}</span>
-        </a>
-    </li>
-    @endhasanyrole
-
-    @hasanyrole('admin|cajero|director')
-    <li class="nav-item @if (request()->routeIs('reportes.index')) active @endif">
-        <a href="{{ route('reportes.index') }}">
-            <span class="icon">
-                <i class="lni lni-stats-up"></i>
-            </span>
-            <span class="text">{{ __('Reportes') }}</span>
-        </a>
-    </li>
-    @endhasanyrole
-
-    @hasanyrole('admin|director')
-    <li class="nav-item @if (request()->routeIs('users.index')) active @endif">
-        <a href="{{ route('users.index') }}">
-            <span class="icon">
-                <i class="lni lni-user"></i>
-            </span>
-            <span class="text">{{ __('Usuarios') }}</span>
-        </a>
-    </li>
-    @endhasanyrole
-
-    @hasanyrole('admin|director|cocinero|ayudante_cocina')
-    <li class="nav-item @if (request()->routeIs('notificaciones.index')) active @endif">
-        <a href="{{ route('notificaciones.index') }}">
-            <span class="icon">
-                <i class="lni lni-warning"></i>
-            </span>
-            <span class="text">{{ __('Alerta y Notificaciones') }}</span>
-        </a>
-    </li>
-    @endhasanyrole
-
-    @hasanyrole('admin|director')
-    <li class="nav-item @if (request()->routeIs('historial.index')) active @endif">
-        <a href="{{ route('historial.index') }}">
-            <span class="icon">
-                <i class="lni lni-archive"></i>
-            </span>
-            <span class="text">{{ __('Historial') }}</span>
-        </a>
-    </li>
-    @endhasanyrole
+@can('dashboard.ver')<li class="nav-item @if(request()->routeIs('home')) active @endif"><a href="{{ route('home') }}"><span class="icon"><i class="lni lni-restaurant"></i></span><span class="text">Dashboard</span></a></li>@endcan
+@if(auth()->user()->canAny(['usuarios.ver','consumidores.ver','clasificacion_clientes.ver','proveedores.ver']))<li class="nav-item nav-item-has-children @if($usuariosAbierto) active @endif"><a href="#0" class="collapsed" data-bs-toggle="collapse" data-bs-target="#cu-usuarios"><span class="icon"><i class="lni lni-users"></i></span><span class="text">Usuarios</span></a><ul id="cu-usuarios" class="collapse dropdown-nav @if($usuariosAbierto) show @endif">@can('usuarios.ver')<li><a href="{{ route('users.index') }}">Personal</a></li>@endcan @can('clasificacion_clientes.ver')<li><a href="{{ route('categorias.rangos.index') }}">Clasificación de clientes</a></li>@endcan @can('consumidores.ver')<li><a href="{{ route('consumidores.index') }}">Consumidores</a></li>@endcan @can('proveedores.ver')<li><a href="{{ route('proveedores.index') }}">Proveedores</a></li>@endcan</ul></li>@endif
+@if(auth()->user()->canAny(['insumos.ver','categorias_insumos.ver','unidades.ver','formatos_empaque.ver','marcas.ver','alertas.ver']))<li class="nav-item nav-item-has-children @if($productosAbierto) active @endif"><a href="#0" class="collapsed" data-bs-toggle="collapse" data-bs-target="#cu-productos"><span class="icon"><i class="lni lni-package"></i></span><span class="text">Productos</span></a><ul id="cu-productos" class="collapse dropdown-nav @if($productosAbierto) show @endif">@can('insumos.ver')<li><a href="{{ route('insumos.index') }}">Insumos</a></li>@endcan @can('categorias_insumos.ver')<li><a href="{{ route('categorias.insumos.index') }}">Categorías de insumos</a></li>@endcan @can('unidades.ver')<li><a href="{{ route('categorias.unidades.index') }}">Unidad de medida</a></li>@endcan @can('formatos_empaque.ver')<li><a href="{{ route('formatos-empaque.index') }}">Formatos de empaque</a></li>@endcan @can('marcas.ver')<li><a href="{{ route('marcas.index') }}">Marcas y empresas</a></li>@endcan @can('alertas.ver')<li><a href="{{ route('notificaciones.index') }}">Alertas y notificaciones</a></li>@endcan</ul></li>@endif
+@if(auth()->user()->canAny(['compras.ver','movimientos.ver']))<li class="nav-item nav-item-has-children @if($inventarioAbierto) active @endif"><a href="#0" class="collapsed" data-bs-toggle="collapse" data-bs-target="#cu-inventario"><span class="icon"><i class="lni lni-layers"></i></span><span class="text">Inventario</span></a><ul id="cu-inventario" class="collapse dropdown-nav @if($inventarioAbierto) show @endif">@can('compras.ver')<li><a href="{{ route('compras.index') }}">Compras</a></li>@endcan @can('movimientos.ver')<li><a href="{{ route('movimientos.index') }}">Movimientos</a></li>@endcan</ul></li>@endif
+@if(auth()->user()->canAny(['recetas.ver','menus.ver','tipos_comida.ver','predicciones.ver']))<li class="nav-item nav-item-has-children @if($produccionAbierto) active @endif"><a href="#0" class="collapsed" data-bs-toggle="collapse" data-bs-target="#cu-produccion"><span class="icon"><i class="lni lni-hammer"></i></span><span class="text">Producción</span></a><ul id="cu-produccion" class="collapse dropdown-nav @if($produccionAbierto) show @endif">@can('recetas.ver')<li><a href="{{ route('recetas.index') }}">Recetas</a></li>@endcan @can('tipos_comida.ver')<li><a href="{{ route('tipos-comida.index') }}">Tipos de comida</a></li><li><a href="{{ route('tipos-produccion.index') }}">Tipos de producción</a></li>@endcan @can('menus.ver')<li><a href="{{ route('menus-dia.index') }}">Menús del día</a></li>@endcan @can('predicciones.ver')<li><a href="{{ route('predicciones.index') }}">Predicciones</a></li>@endcan</ul></li>@endif
+@if(auth()->user()->canAny(['ventas.ver','consumos.ver','pagos.ver']))<li class="nav-item nav-item-has-children @if($operacionesAbierto) active @endif"><a href="#0" class="collapsed" data-bs-toggle="collapse" data-bs-target="#cu-operaciones"><span class="icon"><i class="lni lni-dollar"></i></span><span class="text">Operaciones</span></a><ul id="cu-operaciones" class="collapse dropdown-nav @if($operacionesAbierto) show @endif">@can('ventas.ver')<li><a href="{{ route('ventas.index') }}">Ventas</a></li>@endcan @can('consumos.ver')<li><a href="{{ route('consumos.index') }}">Consumos</a></li>@endcan @can('pagos.ver')<li><a href="{{ route('pagos.index') }}">Pagos</a></li>@endcan</ul></li>@endif
+@can('reportes.ver')<li class="nav-item @if(request()->routeIs('reportes.*')) active @endif"><a href="{{ route('reportes.index') }}"><span class="icon"><i class="lni lni-stats-up"></i></span><span class="text">Reportes y estadísticas</span></a></li>@endcan
+@can('historial.ver')<li class="nav-item @if(request()->routeIs('historial.*')) active @endif"><a href="{{ route('historial.index') }}"><span class="icon"><i class="lni lni-archive"></i></span><span class="text">Historial</span></a></li>@endcan
+@if(auth()->user()->hasRole('admin'))<li class="nav-item nav-item-has-children @if($configuracionAbierta) active @endif"><a href="#0" class="collapsed" data-bs-toggle="collapse" data-bs-target="#cu-configuraciones"><span class="icon"><i class="lni lni-cog"></i></span><span class="text">Configuraciones</span></a><ul id="cu-configuraciones" class="collapse dropdown-nav @if($configuracionAbierta) show @endif"><li><a href="{{ route('configuraciones.roles') }}">Roles</a></li><li><a href="{{ route('configuraciones.permisos') }}">Permisos</a></li><li><a href="{{ route('configuraciones.diseno') }}">Diseño</a></li></ul></li>@endif
 </ul>

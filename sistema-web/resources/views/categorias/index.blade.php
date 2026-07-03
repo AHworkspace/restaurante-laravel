@@ -21,9 +21,9 @@
             <div class="col-lg-12">
                 <div class="card-style mb-30">
                     <h6 class="mb-10">Tabla de datos de categorias de insumos</h6>
-                    @role('admin|cocinero')
+                    @can('categorias_insumos.crear')
                     <a href="{{ route('categorias.create') }}" class="btn btn-primary">Crear Categoría</a>
-                    @endrole
+                    @endcan
                     <div class="table-wrapper table-responsive">
                         <table class="table">
                             <thead>
@@ -60,7 +60,7 @@
                                             <p>{{ $categoria->descripcion }}</p>
                                         </td>
                                         <td>
-                                            @role('admin|cocinero')
+                                            @canany(['categorias_insumos.editar','categorias_insumos.eliminar'])
                                             <div class="action d-flex" style="gap: 10px;">
                                                 <a href="{{ route('categorias.edit', $categoria->id) }}"
                                                    class="main-btn dark-btn btn-hover"
@@ -79,7 +79,7 @@
                                                     </button>
                                                 </form>
                                             </div>
-                                            @endrole
+                                            @endcanany
                                         </td>
                                     </tr>
                                 @empty

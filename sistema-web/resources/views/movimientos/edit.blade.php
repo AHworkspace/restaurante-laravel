@@ -25,6 +25,7 @@
                             <label for="cantidad" class="form-label">Cantidad</label>
                             <input type="number" name="cantidad" id="cantidad" class="form-control" min="0.01" step="0.01" required value="{{ old('cantidad', $movimiento->cantidad_original ?? $movimiento->cantidad) }}">
                         </div>
+                        <div class="mb-3"><label for="presentacion_id" class="form-label">Presentación</label><select name="presentacion_id" id="presentacion_id" class="form-control">@foreach($presentaciones as $presentacion)<option value="{{ $presentacion->id }}" data-insumo="{{ $presentacion->insumo_id }}" @selected(old('presentacion_id',$movimiento->presentacion_id)==$presentacion->id)>{{ $presentacion->insumo->nombre }} · {{ $presentacion->nombre }}</option>@endforeach</select></div>
                         <div class="mb-3">
                             <label for="unidad_medida_id" class="form-label">Unidad de Medida</label>
                             <select name="unidad_medida_id" id="unidad_medida_id" class="form-control">
@@ -114,6 +115,7 @@
             'costo_estandar' => $insumo->costo_estandar,
         ]];
     })->toArray();
+    $presentacionesJson=$presentaciones->mapWithKeys(fn($p)=>[$p->id=>['costo_estandar'=>(float)$p->costo_estandar]])->toArray();
 
     // Agregar conversiones de unidades para el cálculo del costo
     $conversionesJson = \App\Models\ConversionesUnidades::with(['unidadOrigen', 'unidadDestino'])->get()
@@ -140,6 +142,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const costoSugerido = document.getElementById('costo-sugerido');
 
     const insumosData = @json($insumosJson);
+    const presentacionesData = @json($presentacionesJson);
     const conversionesData = @json($conversionesJson);
 
     // Función para obtener factor de conversión (puede ser directa o indirecta)
@@ -284,8 +287,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const insumoId = insumoSelect.value;
         const cantidad = parseFloat(cantidadInput.value);
         const unidadId = unidadSelect.value;
+        const costoPresentacion=Number(presentacionesData[document.getElementById('presentacion_id')?.value]?.costo_estandar||0);
 
-        if (!insumoId || !insumosData[insumoId] || !insumosData[insumoId].costo_estandar || !cantidad) {
+        if (!insumoId || !insumosData[insumoId] || !costoPresentacion || !cantidad) {
             costoSugerido.textContent = 'Sin costo estándar registrado para este insumo.';
             return;
         }
@@ -294,7 +298,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const unidadBaseId = parseInt(insumo.unidad_id);
         // Si no hay unidad seleccionada o está vacía, usar la unidad base
         const unidadSeleccionadaId = (unidadId && unidadId !== '') ? parseInt(unidadId) : unidadBaseId;
-        const costoEstandar = parseFloat(insumo.costo_estandar);
+        const costoEstandar = costoPresentacion;
 
         let costoCalculado = 0;
         let mensaje = '';

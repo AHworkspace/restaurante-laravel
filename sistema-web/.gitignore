@@ -15,6 +15,11 @@ Homestead.json
 Homestead.yaml
 npm-debug.log
 yarn-error.log
+/server-*.out
+/server-*.err
+/bootstrap/cache/*.php
+/storage/framework/views/*.php
+/storage/logs/*.log
 /auth.json
 /.fleet
 /.idea

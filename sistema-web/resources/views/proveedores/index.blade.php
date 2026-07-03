@@ -17,9 +17,9 @@
 
     <div class="card">
         <div class="card-header">
-            @role('admin|cocinero|ayudante_cocina')
+            @can('proveedores.crear')
             <a href="{{ route('proveedores.create') }}" class="btn btn-primary">Crear Proveedor</a>
-            @endrole
+            @endcan
         </div>
         <div class="card-body">
             <table class="table table-striped">
@@ -44,7 +44,7 @@
                             <td>{{ $proveedor->email }}</td>
                             <td>{{ $proveedor->descripcion ?? 'Sin descripción' }}</td>
                             <td>
-                                @role('admin|cocinero|ayudante_cocina')
+                                @canany(['proveedores.editar','proveedores.eliminar'])
                                 <a href="{{ route('proveedores.edit', $proveedor->id) }}"
                                     class="btn btn-warning">Editar</a>
                                 <form action="{{ route('proveedores.destroy', $proveedor->id) }}" method="POST"
@@ -53,7 +53,7 @@
                                     @method('DELETE')
                                     <button type="submit" class="btn btn-danger" onclick="return confirm('¿Seguro de eliminar?')">Eliminar</button>
                                 </form>
-                                @endrole
+                                @endcanany
                             </td>
                         </tr>
                     @endforeach

@@ -11,13 +11,13 @@
                             {{ __('Movimientos de Inventario') }}
                         </span>
                         <div class="float-right">
-                            @role('admin|cocinero|ayudante_cocina')
+                            @can('movimientos.crear')
                             <a href="{{ route('movimientos.create') }}"
                                class="btn"
                                style="background-color: #6F4E37; color: white; border-radius: 5px; padding: 8px 20px;">
                                 {{ __('CREAR NUEVO') }}
                             </a>
-                            @endrole
+                            @endcan
                         </div>
                     </div>
                 </div>
@@ -84,6 +84,7 @@
                                     @php
                                         $cantidadMostrar = $movimiento->cantidad_original ?? $movimiento->cantidad;
                                         $unidadMostrar = $movimiento->unidad_medida ?? $movimiento->insumo->unidad_medida;
+                                        $unidadInventario = $movimiento->unidadInventario ?? $movimiento->compraLinea?->unidadInventario ?? $movimiento->insumo->unidad_medida;
                                         $mostrarConversion = $movimiento->cantidad_convertida &&
                                                              $movimiento->cantidad_original &&
                                                              abs($movimiento->cantidad_original - $movimiento->cantidad_convertida) > 0.001;
@@ -91,24 +92,32 @@
                                     @endphp
                                     <tr>
                                         <td>{{ ++$i }}</td>
-                                        <td>{{ $movimiento->insumo->nombre }}</td>
+                                        <td>{{ $movimiento->insumo->nombre }}@if($movimiento->presentacion)<br><small class="text-muted">{{ $movimiento->presentacion->nombre }}</small>@endif</td>
                                         <td>
                                             {{ number_format($cantidadMostrar, 2) }}
+                                            @if((float)$movimiento->cantidad_suelta > 0)
+                                                {{ $unidadMostrar->abreviatura }} y {{ number_format($movimiento->cantidad_suelta,2) }} {{ $unidadInventario?->abreviatura }}
+                                            @endif
                                             @if($mostrarConversion)
                                                 <br>
                                                 <small class="text-muted">
                                                     ({{ number_format($movimiento->cantidad_convertida, 2) }}
-                                                    {{ $movimiento->insumo->unidad_medida->abreviatura }})
+                                                    {{ $unidadInventario?->abreviatura }})
                                                 </small>
                                             @endif
                                         </td>
                                         <td>
-                                            {{ $unidadMostrar->abreviatura }}
+                                            @if((float)$movimiento->cantidad_suelta <= 0){{ $unidadMostrar->abreviatura }}@elseTotal: {{ number_format($movimiento->cantidad_convertida,2) }} {{ $unidadInventario?->abreviatura }}@endif
                                         </td>
                                         @if($esEntrada)
                                             <td>
                                                 @if($movimiento->compra)
-                                                    <strong>Bs. {{ number_format($movimiento->compra->costo_total, 2) }}</strong>
+                                                     <strong>Bs. {{ number_format($movimiento->compra->costo_total, 2) }}</strong>
+                                                    @if($movimiento->compraLinea)
+                                                        <div><small>Compra {{ $movimiento->compra->numero_documento ?: '#'.$movimiento->compra_id }}, línea #{{ $movimiento->compra_linea_id }}</small></div>
+                                                        <div><small>Marca/empresa: {{ $movimiento->compraLinea->marca?->nombre ?: 'Sin especificar' }}</small></div>
+                                                        <div><small class="{{ $movimiento->compraLinea->cantidad_faltante > 0 ? 'text-danger' : 'text-success' }}">Faltante: {{ number_format($movimiento->compraLinea->cantidad_faltante, 2) }}</small></div>
+                                                    @endif
                                                     @if($movimiento->compra->descripcion)
                                                         <div><small class="text-muted">Detalle: {{ $movimiento->compra->descripcion }}</small></div>
                                                     @endif
@@ -135,22 +144,22 @@
                                         <td>
                                             <div class="d-flex align-items-center gap-2 flex-wrap">
                                                 <form action="{{ route('movimientos.destroy',$movimiento->id) }}" method="POST" class="d-flex gap-2 mb-0">
-                                                    @role('admin|cocinero|ayudante_cocina')
+                                                    @can('movimientos.editar')
                                                     <a class="btn"
                                                        href="{{ route('movimientos.edit',$movimiento->id) }}"
                                                        style="background-color: #6F4E37; color: white; border-radius: 5px; padding: 8px 20px;">
                                                         EDITAR
                                                     </a>
-                                                    @endrole
+                                                    @endcan
                                                     @csrf
                                                     @method('DELETE')
-                                                    @role('admin|cocinero|ayudante_cocina')
+                                                    @can('movimientos.eliminar')
                                                     <button type="submit"
                                                             class="btn"
                                                             style="background-color: #6F4E37; color: white; border-radius: 5px; padding: 8px 20px;">
                                                         ELIMINAR
                                                     </button>
-                                                    @endrole
+                                                    @endcan
                                                 </form>
                                             </div>
                                         </td>

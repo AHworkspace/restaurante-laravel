@@ -19,15 +19,18 @@ class HistorialHelper
                 $rol = $user->rol;
             }
         }
+        $nombre = $user
+            ? trim(collect([$user->nombre ?? $user->name ?? null, $user->apellido_paterno ?? null])->filter()->implode(' '))
+            : 'Sistema';
         DB::table('historial')->insert([
             'user_id' => $user?->id,
-            'usuario' => $user->nombre ?? 'Usuario',
+            'usuario' => $nombre ?: ($user?->email ?? 'Sistema'),
             'rol' => $rol,
             'fecha' => now()->toDateString(),
             'hora' => now()->toTimeString(),
-            'seccion' => $seccion,
-            'accion' => $accion,
-            'detalles' => $detalles,
+            'seccion' => $seccion ?: 'Sistema',
+            'accion' => trim((string) $accion),
+            'detalles' => $detalles ? trim((string) $detalles) : 'Sin detalles adicionales.',
             'created_at' => now(),
             'updated_at' => now(),
         ]);

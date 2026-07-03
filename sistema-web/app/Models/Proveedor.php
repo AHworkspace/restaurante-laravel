@@ -17,4 +17,5 @@ class Proveedor extends Model
         'email',
         'descripcion',
     ];
+    public function marcas(){return $this->belongsToMany(Marca::class,'marca_proveedor');}
 }

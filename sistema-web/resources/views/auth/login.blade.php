@@ -1,6 +1,18 @@
 @extends('layouts.guest')
 
 @section('content')
+@php
+use App\Models\ConfiguracionSistema as ConfigSistema;
+$nombreRestaurante=ConfigSistema::valor('nombre_restaurante','Las Brazas');
+$imagenLogin=ConfigSistema::valor('imagen_login');
+$colorPrimario=ConfigSistema::valor('color_primario','#7A5C58');
+$colorSecundario=ConfigSistema::valor('color_secundario','#CDBEAC');
+$tipografia=ConfigSistema::valor('tipografia','Arial');
+$tipografiaTitulos=ConfigSistema::valor('tipografia_titulos','Arial');
+$posicionLogin=ConfigSistema::valor('posicion_login','centro');
+$opacidadLogin=(int)ConfigSistema::valor('opacidad_login',0);
+$faviconSistema=ConfigSistema::valor('favicon');
+@endphp
 <div class="login-container">
     @if(Session::has('success'))
     <div class="alert alert-success">
@@ -14,6 +26,7 @@
     @endif
     <div class="form-section">
         <div class="form-container">
+            <h1 style="font-size:1.75rem;text-align:center;margin-bottom:1.5rem;color:{{ $colorPrimario }}">{{ $nombreRestaurante }}</h1>
             <form action="{{ route('login') }}" method="POST">
                 @csrf
                 <div class="input-group">
@@ -59,6 +72,7 @@
                     INICIAR SESIÓN
                 </button>
             </form>
+            <div style="text-align:center;margin-top:1.25rem"><a href="{{ route('cliente.register') }}" class="forgot-link">Registrarse como cliente</a></div>
         </div>
     </div>
 </div>
@@ -67,13 +81,18 @@
     .login-container {
         position: relative;
         min-height: 100vh;
-        background: url('{{ asset('images/secion iniciada.jpg') }}') no-repeat center center;
+        background: url('{{ $imagenLogin ? Storage::url($imagenLogin) : asset('images/secion iniciada.jpg') }}') no-repeat center center;
         background-size: cover;
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: {{ ['izquierda'=>'flex-start','centro'=>'center','derecha'=>'flex-end'][$posicionLogin]??'center' }};
         padding: 2rem;
+        font-family: '{{ $tipografia }}', sans-serif;
     }
+
+    .login-container::before { content:''; position:absolute; inset:0; background:rgba(0,0,0,{{ $opacidadLogin/100 }}); }
+
+    .form-container h1 { font-family:'{{ $tipografiaTitulos }}',sans-serif; }
 
     .form-section {
         position: relative;
@@ -159,7 +178,7 @@
     .login-button {
         width: 100%;
         padding: 0.875rem;
-        background: linear-gradient(135deg, #6F4E37 0%, #CDBEAC 100%);
+        background: linear-gradient(135deg, {{ $colorPrimario }} 0%, {{ $colorSecundario }} 100%);
         border: none;
         border-radius: 8px;
         color: #2F2B27;

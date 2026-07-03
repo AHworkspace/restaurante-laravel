@@ -7,6 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use App\Models\Insumo;
+use App\Models\InsumoPresentacion;
 
 class StockBajo extends Notification
 {
@@ -15,15 +16,17 @@ class StockBajo extends Notification
     public $insumo;
     public $cantidadSalida;
     public $fecha;
+    public $presentacion;
 
     /**
      * Modifico el constructor para aceptar cantidad de salida y fecha.
      */
-    public function __construct(Insumo $insumo, $cantidadSalida, $fecha)
+    public function __construct(Insumo $insumo, $cantidadSalida, $fecha, ?InsumoPresentacion $presentacion=null)
     {
         $this->insumo = $insumo;
         $this->cantidadSalida = $cantidadSalida;
         $this->fecha = $fecha;
+        $this->presentacion = $presentacion;
     }
 
     /**
@@ -51,14 +54,16 @@ class StockBajo extends Notification
     {
         $nombreInsumo = $this->insumo->nombre;
         $categoria = $this->insumo->categoria ? $this->insumo->categoria->nombre : '-';
-        $stockMinimo = $this->insumo->stock_minimo;
-        $stockActual = $this->insumo->getCantidadTotal();
+        $stockMinimo = $this->presentacion?->stock_minimo ?? $this->insumo->stock_minimo;
+        $stockActual = $this->presentacion?->stockDisponible() ?? $this->insumo->getCantidadTotal();
         $cantidadSalida = $this->cantidadSalida;
         $fecha = $this->fecha->format('d/m/Y');
         $hora = $this->fecha->format('H:i');
         return [
             'message' => "⚠️ El insumo '{$nombreInsumo}' está por debajo del stock mínimo.",
             'insumo_id' => $this->insumo->id,
+            'presentacion_id' => $this->presentacion?->id,
+            'presentacion' => $this->presentacion?->nombre,
             'nombre_insumo' => $nombreInsumo,
             'categoria' => $categoria,
             'stock_minimo' => $stockMinimo,

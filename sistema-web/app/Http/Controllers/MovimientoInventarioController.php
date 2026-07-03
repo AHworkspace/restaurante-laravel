@@ -7,6 +7,7 @@ use App\Models\Insumo;
 use App\Models\UnidadMedida;
 use App\Models\Receta;
 use App\Models\Compra;
+use App\Models\CompraLinea;
 use App\Models\Proveedor;
 use App\Models\ReporteMovimiento;
 use Illuminate\Http\Request;
@@ -16,6 +17,7 @@ use App\Notifications\StockBajo;
 use App\Notifications\StockRepuesto;
 use App\Helpers\HistorialHelper;
 use App\Helpers\ConversionesHelper;
+use Illuminate\Support\Facades\DB;
 
 class MovimientoInventarioController extends Controller
 {
@@ -28,6 +30,7 @@ class MovimientoInventarioController extends Controller
             'insumo.unidad_medida',
             'unidad_medida',
             'compra.proveedorRel',
+            'compraLinea.marca','compraLinea.unidadInventario','presentacion','unidadInventario',
             'receta',
         ]);
         if ($request->filled('fecha_inicio')) {
@@ -53,7 +56,12 @@ class MovimientoInventarioController extends Controller
         $unidades = UnidadMedida::all();
         $recetas = Receta::all();
         $proveedores = Proveedor::all();
-        return view('movimientos.create', compact('insumos', 'unidades', 'recetas', 'proveedores'));
+        $presentaciones=\App\Models\InsumoPresentacion::with('insumo')->where('activa',true)->orderBy('nombre')->get();
+        $lineasCompra = CompraLinea::with(['compra.proveedorRel', 'insumo.unidad_medida', 'presentacion', 'formatoEmpaque', 'marca', 'unidadMedida', 'unidadPrecio', 'unidadContenido', 'unidadInventario'])
+            ->whereColumn('cantidad_recibida_base', '<', 'cantidad_pedida_base')
+            ->whereHas('compra', fn ($q) => $q->whereNotIn('estado', ['anulada', 'recibida']))
+            ->orderBy('compra_id')->get();
+        return view('movimientos.create', compact('insumos', 'presentaciones', 'unidades', 'recetas', 'proveedores', 'lineasCompra'));
     }
 
     /**
@@ -63,21 +71,39 @@ class MovimientoInventarioController extends Controller
     {
         // Validar los datos
         $validated = $request->validate([
-            'cantidad' => 'required|numeric|min:0.01',
+            'cantidad' => 'required|numeric|min:0',
+            'cantidad_suelta' => 'nullable|numeric|min:0',
             'tipo' => 'required|in:entrada,salida',
             'motivo' => 'required|string|max:100',
             'insumo_id' => 'required|exists:insumos,id',
             'unidad_medida_id' => 'nullable|exists:unidad_medidas,id',
-            'costo_compra' => 'required_if:tipo,entrada|nullable|numeric|min:0',
-            'proveedor_id' => 'required_if:tipo,entrada|nullable|exists:proveedores,id',
+            'costo_compra' => 'nullable|numeric|min:0',
+            'proveedor_id' => 'nullable|exists:proveedores,id',
             'detalle_compra' => 'nullable|string|max:255',
             'receta_id' => 'nullable|exists:recetas,id',
             'fecha' => 'required|date',
+            'compra_linea_id' => 'nullable|exists:compra_lineas,id',
+            'presentacion_id' => 'nullable|exists:insumo_presentaciones,id',
         ]);
+
+        $lineaCompra = null;
+        if ($request->filled('compra_linea_id')) {
+            if ($request->tipo !== 'entrada') return back()->withErrors(['compra_linea_id' => 'Una línea de compra solo puede recibirse como entrada.'])->withInput();
+            $lineaCompra = CompraLinea::with(['compra', 'insumo', 'marca'])->findOrFail($request->compra_linea_id);
+            $request->merge([
+                'insumo_id' => $lineaCompra->insumo_id,
+                'unidad_medida_id' => $lineaCompra->unidad_medida_id ?: $lineaCompra->insumo->unidad_medida_id,
+                'presentacion_id' => $lineaCompra->presentacion_id,
+            ]);
+        }
 
         // Obtener insumo y su unidad base
         $insumo = Insumo::with('unidad_medida')->find($request->insumo_id);
         $unidadBase = $insumo->unidad_medida;
+        $presentacionId=$lineaCompra?->presentacion_id ?: ($request->presentacion_id ?: $insumo->presentacionPredeterminada()->value('id'));
+        $presentacionSeleccionada=$presentacionId?\App\Models\InsumoPresentacion::with('unidadStockRelacion')->find($presentacionId):null;
+        if(!$lineaCompra&&$presentacionSeleccionada?->unidadStockRelacion)$unidadBase=$presentacionSeleccionada->unidadStockRelacion;
+        if($presentacionId&&\App\Models\InsumoPresentacion::whereKey($presentacionId)->where('insumo_id','!=',$insumo->id)->exists())return back()->withErrors(['presentacion_id'=>'La presentación no pertenece al insumo seleccionado.'])->withInput();
 
         // Determinar unidad del movimiento (si no se especifica, usar la unidad base del insumo)
         $unidadMovimientoId = $request->unidad_medida_id ?? $unidadBase->id;
@@ -85,6 +111,8 @@ class MovimientoInventarioController extends Controller
 
         // Convertir cantidad a unidad base si es necesario
         $cantidadOriginal = $request->cantidad;
+        $cantidadSuelta = (float) ($request->cantidad_suelta ?? 0);
+        if ((float)$cantidadOriginal <= 0 && $cantidadSuelta <= 0) return back()->withErrors(['cantidad'=>'Debes recibir al menos un empaque o una unidad suelta.'])->withInput();
         $cantidadConvertida = $cantidadOriginal;
 
         if ($unidadMovimientoId != $unidadBase->id) {
@@ -99,6 +127,12 @@ class MovimientoInventarioController extends Controller
                 // No se pudo convertir, usar cantidad original pero mostrar advertencia
                 $cantidadConvertida = $cantidadOriginal;
             }
+        }
+
+        if ($lineaCompra) {
+            $cantidadConvertida = ($cantidadOriginal * (float) ($lineaCompra->factor_compra_base ?: 1)) + $cantidadSuelta;
+        } elseif ($cantidadConvertida === null) {
+            return back()->withErrors(['unidad_medida_id' => 'No existe una conversión entre la unidad seleccionada y la unidad base del insumo.'])->withInput();
         }
 
         // Validación para salidas: no permitir más que el stock disponible (usar cantidad convertida)
@@ -117,12 +151,16 @@ class MovimientoInventarioController extends Controller
         $recetaId = null;
 
         if ($request->tipo === 'entrada') {
-            $costoCompra = $request->costo_compra;
+            if ($lineaCompra && $cantidadConvertida > $lineaCompra->cantidad_faltante_base + 0.0001) {
+                return back()->withErrors(['cantidad' => 'La recepción supera las '.number_format($lineaCompra->cantidad_faltante_base, 2).' unidades interiores pendientes.'])->withInput();
+            }
+            $costoCompra = $lineaCompra ? (float) $lineaCompra->costo_linea : $request->costo_compra;
+            $costoEstandarPresentacion=(float)(\App\Models\InsumoPresentacion::find($presentacionId)?->costo_estandar??0);
             // Si no hay costo, usar el costo estándar calculado
-            if (empty($costoCompra) || $costoCompra == 0) {
-                if ($insumo->costo_estandar) {
+            if (! $lineaCompra && (empty($costoCompra) || $costoCompra == 0)) {
+                if ($costoEstandarPresentacion>0) {
                     // Calcular costo basado en cantidad y unidad
-                    $costoCompra = round($insumo->costo_estandar * $cantidadOriginal, 2);
+                    $costoCompra = round($costoEstandarPresentacion * $cantidadConvertida, 2);
                 } else {
                     return back()->withErrors([
                         'costo_compra' => 'Debe ingresar un costo para esta compra o definir un costo estándar para el insumo.'
@@ -130,26 +168,7 @@ class MovimientoInventarioController extends Controller
                 }
             }
 
-            $proveedor = Proveedor::find($request->proveedor_id);
-            if (!$proveedor) {
-                return back()->withErrors([
-                    'proveedor_id' => 'Debe seleccionar un proveedor válido.'
-                ])->withInput();
-            }
-
-            try {
-                $compra = Compra::create([
-                    'costo_total' => $costoCompra,
-                    'proveedor' => $proveedor->nombre,
-                    'proveedor_id' => $request->proveedor_id,
-                    'descripcion' => $request->detalle_compra,
-                ]);
-                $compraId = $compra->id;
-            } catch (\Exception $e) {
-                return back()->withErrors([
-                    'error' => 'Error al crear la compra: ' . $e->getMessage()
-                ])->withInput();
-            }
+            $compraId = $lineaCompra?->compra_id;
 
             if (!$motivoFinal) {
                 $motivoFinal = 'Compra de ' . $insumo->nombre;
@@ -162,44 +181,79 @@ class MovimientoInventarioController extends Controller
             }
         }
 
-        // Crear el movimiento de inventario
-        $movimiento = MovimientoInventario::create([
+        $movimientoData = [
             'cantidad' => $cantidadOriginal, // Mantener para compatibilidad
             'cantidad_original' => $cantidadOriginal,
+            'cantidad_suelta' => $cantidadSuelta,
             'cantidad_convertida' => $cantidadConvertida,
+            'unidad_inventario_id' => $lineaCompra?->unidad_inventario_id ?: $unidadBase->id,
             'unidad_medida_id' => $unidadMovimientoId,
             'tipo' => $request->tipo,
             'motivo' => $motivoFinal,
             'insumo_id' => $request->insumo_id,
             'compra_id' => $compraId,
+            'compra_linea_id' => $lineaCompra?->id,
+            'presentacion_id' => $presentacionId,
             'receta_id' => $recetaId,
             'created_at' => $request->fecha,
-        ]);
+        ];
+
+        if ($lineaCompra) {
+            $movimiento = DB::transaction(function () use ($lineaCompra, $cantidadOriginal, $cantidadConvertida, $movimientoData) {
+                $linea = CompraLinea::lockForUpdate()->findOrFail($lineaCompra->id);
+                if ($cantidadConvertida > $linea->cantidad_faltante_base + 0.0001) abort(422, 'La cantidad recibida supera el faltante de la línea de compra.');
+                $movimiento = MovimientoInventario::create($movimientoData);
+                $linea->increment('cantidad_recibida', $cantidadOriginal);
+                $linea->increment('cantidad_recibida_base', $cantidadConvertida);
+                $compra = Compra::lockForUpdate()->findOrFail($linea->compra_id);
+                $compra->load('lineas');
+                $recibido = $compra->lineas->sum(fn ($item) => (float) $item->cantidad_recibida_base);
+                $pedido = $compra->lineas->sum(fn ($item) => (float) $item->cantidad_pedida_base);
+                $compra->update([
+                    'cantidad_recibida' => $recibido,
+                    'estado' => $recibido <= 0 ? 'pendiente' : ($recibido + 0.0001 >= $pedido ? 'recibida' : 'parcial'),
+                ]);
+                return $movimiento;
+            });
+        } else {
+            $movimiento = MovimientoInventario::create($movimientoData);
+        }
+
+        if($request->tipo==='entrada'&&$presentacionId&&$cantidadConvertida>0){
+            $costoEntrada=$lineaCompra
+                ? (float)$lineaCompra->costo_linea*($cantidadConvertida/max(0.0001,(float)$lineaCompra->cantidad_pedida_base))
+                : (float)($costoCompra??0);
+            if($costoEntrada>0)$this->actualizarCostoPromedioPresentacion($presentacionId,(float)$cantidadConvertida,$costoEntrada);
+        }
 
         $detalles = 'Tipo: ' . $movimiento->tipo . ', Insumo: ' . $insumo->nombre . ', Cantidad: ' .
                     $cantidadOriginal . ' ' . $unidadMovimiento->abreviatura;
-        if ($unidadMovimientoId != $unidadBase->id) {
+        if ($lineaCompra && $lineaCompra->unidad_inventario_id) {
+            $detalles .= ' (' . number_format($cantidadConvertida, 2) . ' ' . $lineaCompra->unidadInventario?->abreviatura . ' ingresan al inventario)';
+        } elseif ($unidadMovimientoId != $unidadBase->id) {
             $detalles .= ' (' . number_format($cantidadConvertida, 2) . ' ' . $unidadBase->abreviatura . ')';
         }
         if ($compraId) {
-            $detalles .= ', Compra #'.$compraId.' (Bs. '.$compra->costo_total.')';
+            $detalles .= ', Compra #'.$compraId.', línea #'.$lineaCompra->id.', faltante después de entrada: '.number_format($lineaCompra->fresh()->cantidad_faltante, 2);
         }
         HistorialHelper::registrar('Registró movimiento', $detalles, 'Movimientos');
 
         $insumo = Insumo::find($request->insumo_id);
-        $stockActual = $insumo->getCantidadTotal();
+        $presentacionStock=$presentacionId?\App\Models\InsumoPresentacion::with(['movimientos','unidadContenido','insumo.unidad_medida'])->find($presentacionId):null;
+        $stockActual = $presentacionStock?->stockDisponible() ?? $insumo->getCantidadTotal();
+        $stockMinimo = (float)($presentacionStock?->stock_minimo ?? $insumo->stock_minimo);
 
         // Si es salida, verificar stock después de registrar el movimiento
         if ($request->tipo === 'salida') {
-            if ($stockActual <= $insumo->stock_minimo) {
+            if ($stockActual <= $stockMinimo) {
                 $usuarios = \App\Models\User::role(['admin', 'cocinero', 'director', 'ayudante_cocina'])->get();
-                \Illuminate\Support\Facades\Notification::send($usuarios, new \App\Notifications\StockBajo($insumo, $request->cantidad, now()));
+                \Illuminate\Support\Facades\Notification::send($usuarios, new \App\Notifications\StockBajo($insumo, $request->cantidad, now(),$presentacionStock));
             }
         }
 
         // Si es entrada, verificar si había alerta y notificar reposición
         if ($request->tipo === 'entrada') {
-            if ($stockActual > $insumo->stock_minimo) {
+            if ($stockActual > $stockMinimo) {
                 $usuarios = \App\Models\User::role(['admin', 'cocinero', 'director', 'ayudante_cocina'])->get();
                 foreach ($usuarios as $usuario) {
                     // Convertir TEXT a JSON primero, luego extraer el valor
@@ -210,7 +264,7 @@ class MovimientoInventarioController extends Controller
                     foreach ($notificaciones as $notificacion) {
                         $notificacion->markAsRead();
                     }
-                    $usuario->notify(new \App\Notifications\StockRepuesto($insumo, $request->cantidad, now()));
+                    $usuario->notify(new \App\Notifications\StockRepuesto($insumo, $request->cantidad, now(),$presentacionStock));
                 }
             }
         }
@@ -248,6 +302,7 @@ class MovimientoInventarioController extends Controller
             return [
                 'id' => $movimiento->id,
                 'insumo' => $movimiento->insumo->nombre,
+                'presentacion' => $movimiento->presentacion?->nombre,
                 'cantidad' => $movimiento->cantidad_original ?? $movimiento->cantidad,
                 'unidad' => $unidad?->abreviatura ?? '',
                 'tipo' => $movimiento->tipo,
@@ -299,10 +354,11 @@ class MovimientoInventarioController extends Controller
     public function edit(MovimientoInventario $movimiento)
     {
         $insumos = \App\Models\Insumo::with('unidad_medida')->get();
+        $presentaciones=\App\Models\InsumoPresentacion::with('insumo')->where('activa',true)->orderBy('nombre')->get();
         $unidades = UnidadMedida::all();
         $recetas = Receta::all();
         $proveedores = Proveedor::all();
-        return view('movimientos.edit', compact('movimiento', 'insumos', 'unidades', 'recetas', 'proveedores'));
+        return view('movimientos.edit', compact('movimiento', 'insumos', 'presentaciones', 'unidades', 'recetas', 'proveedores'));
     }
 
     /**
@@ -316,16 +372,49 @@ class MovimientoInventarioController extends Controller
             'motivo' => 'required|string|max:100',
             'insumo_id' => 'required|exists:insumos,id',
             'unidad_medida_id' => 'nullable|exists:unidad_medidas,id',
-            'costo_compra' => 'required_if:tipo,entrada|numeric|min:0',
-            'proveedor_id' => 'required_if:tipo,entrada|exists:proveedores,id',
+            'costo_compra' => 'nullable|numeric|min:0',
+            'proveedor_id' => 'nullable|exists:proveedores,id',
             'detalle_compra' => 'nullable|string|max:255',
             'receta_id' => 'nullable|exists:recetas,id',
             'fecha' => 'required|date',
+            'presentacion_id' => 'nullable|exists:insumo_presentaciones,id',
         ]);
+
+        if ($movimiento->compra_linea_id) {
+            if ($request->tipo !== 'entrada') return back()->withErrors(['tipo' => 'Una recepción de compra debe conservarse como entrada.']);
+            DB::transaction(function () use ($request, $movimiento) {
+                $linea = CompraLinea::lockForUpdate()->findOrFail($movimiento->compra_linea_id);
+                $anterior = (float) ($movimiento->cantidad_original ?? $movimiento->cantidad);
+                $nueva = (float) $request->cantidad;
+                $recibidoNuevo = (float) $linea->cantidad_recibida - $anterior + $nueva;
+                if ($recibidoNuevo < 0 || $recibidoNuevo > (float) $linea->cantidad_pedida) {
+                    abort(422, 'La corrección supera la cantidad pedida o deja una recepción negativa.');
+                }
+                $linea->update(['cantidad_recibida' => $recibidoNuevo]);
+                $insumo = Insumo::with('unidad_medida')->findOrFail($linea->insumo_id);
+                $unidadId = $linea->unidad_medida_id ?: $insumo->unidad_medida_id;
+                $convertida = $nueva * (float) ($linea->factor_compra_base ?: 1);
+                $movimiento->update([
+                    'cantidad' => $nueva,
+                    'cantidad_original' => $nueva,
+                    'cantidad_convertida' => $convertida,
+                    'tipo' => 'entrada',
+                    'motivo' => $request->motivo,
+                    'insumo_id' => $linea->insumo_id,
+                    'unidad_medida_id' => $unidadId,
+                    'presentacion_id' => $linea->presentacion_id,
+                    'created_at' => $request->fecha,
+                ]);
+                $this->actualizarEstadoCompra($linea->compra_id);
+            });
+            HistorialHelper::registrar('Corrigió recepción de compra', 'Movimiento #'.$movimiento->id.', compra #'.$movimiento->compra_id.', nueva cantidad: '.$request->cantidad.'.', 'Movimientos');
+            return redirect()->route('movimientos.index')->with('success', 'Recepción actualizada correctamente');
+        }
 
         // Obtener insumo y su unidad base
         $insumo = Insumo::with('unidad_medida')->find($request->insumo_id);
         $unidadBase = $insumo->unidad_medida;
+        if($request->presentacion_id&&\App\Models\InsumoPresentacion::whereKey($request->presentacion_id)->where('insumo_id','!=',$insumo->id)->exists())return back()->withErrors(['presentacion_id'=>'La presentación no pertenece al insumo seleccionado.'])->withInput();
 
         // Determinar unidad del movimiento (si no se especifica, usar la unidad base del insumo)
         $unidadMovimientoId = $request->unidad_medida_id ?? $unidadBase->id;
@@ -373,8 +462,9 @@ class MovimientoInventarioController extends Controller
 
         if ($request->tipo === 'entrada') {
             $costoCompra = $request->costo_compra;
-            if (!$costoCompra && $insumo->costo_estandar) {
-                $costoCompra = round($insumo->costo_estandar * $cantidadOriginal, 2);
+            $costoEstandarPresentacion=(float)(\App\Models\InsumoPresentacion::find($request->presentacion_id)?->costo_estandar??0);
+            if (!$costoCompra && $costoEstandarPresentacion>0) {
+                $costoCompra = round($costoEstandarPresentacion * $cantidadConvertida, 2);
             }
 
             $proveedor = Proveedor::find($request->proveedor_id);
@@ -425,6 +515,7 @@ class MovimientoInventarioController extends Controller
         $movimiento->tipo = $request->tipo;
         $movimiento->motivo = $motivoFinal;
         $movimiento->insumo_id = $request->insumo_id;
+        $movimiento->presentacion_id = $request->presentacion_id ?: $insumo->presentacionPredeterminada()->value('id');
         $movimiento->compra_id = $compraId;
         $movimiento->receta_id = $recetaId;
         $movimiento->created_at = $request->fecha;
@@ -450,23 +541,39 @@ class MovimientoInventarioController extends Controller
     {
         $info = 'Tipo: ' . $movimiento->tipo . ', Insumo ID: ' . $movimiento->insumo_id . ', Cantidad: ' . $movimiento->cantidad;
 
-        // Guardar referencia a la compra antes de eliminar el movimiento
-        $compraId = $movimiento->compra_id;
-        $compra = $movimiento->compra;
-
-        // Eliminar primero el movimiento (esto libera la referencia de la clave foránea)
-        $movimiento->delete();
-
-        // Ahora eliminar la compra si existe y no hay otros movimientos que la referencien
-        if ($compraId && $compra) {
-            // Verificar si hay otros movimientos que usen esta compra
-            $otrosMovimientos = MovimientoInventario::where('compra_id', $compraId)->count();
-            if ($otrosMovimientos == 0) {
-                $compra->delete();
+        DB::transaction(function () use ($movimiento) {
+            $compraId = $movimiento->compra_id;
+            if ($movimiento->compra_linea_id) {
+                $linea = CompraLinea::lockForUpdate()->findOrFail($movimiento->compra_linea_id);
+                $cantidad = (float) ($movimiento->cantidad_original ?? $movimiento->cantidad);
+                $cantidadBase = (float) ($movimiento->cantidad_convertida ?? $cantidad);
+                $linea->update(['cantidad_recibida' => max(0, (float) $linea->cantidad_recibida - $cantidad),'cantidad_recibida_base'=>max(0,(float)$linea->cantidad_recibida_base-$cantidadBase)]);
             }
-        }
+            $movimiento->delete();
+            if ($compraId) $this->actualizarEstadoCompra($compraId);
+        });
 
         HistorialHelper::registrar('Eliminó movimiento', $info, 'Movimientos');
         return redirect()->route('movimientos.index')->with('success', 'Movimiento eliminado correctamente');
+    }
+
+    private function actualizarEstadoCompra(int $compraId): void
+    {
+        $compra = Compra::with('lineas')->lockForUpdate()->findOrFail($compraId);
+        $recibido = $compra->lineas->sum(fn ($linea) => (float) $linea->cantidad_recibida_base);
+        $pedido = $compra->lineas->sum(fn ($linea) => (float) $linea->cantidad_pedida_base);
+        $compra->update([
+            'cantidad_recibida' => $recibido,
+            'estado' => $recibido <= 0 ? 'pendiente' : ($recibido + 0.0001 >= $pedido ? 'recibida' : 'parcial'),
+        ]);
+    }
+
+    private function actualizarCostoPromedioPresentacion(int $presentacionId,float $cantidadEntrada,float $costoEntrada):void
+    {
+        $presentacion=\App\Models\InsumoPresentacion::with('movimientos')->find($presentacionId);if(!$presentacion)return;
+        $stockActual=$presentacion->stockDisponible();$stockAnterior=max(0,$stockActual-$cantidadEntrada);
+        $valorAnterior=$stockAnterior*(float)($presentacion->costo_estandar??0);
+        $nuevoCosto=($valorAnterior+$costoEntrada)/max(0.0001,$stockAnterior+$cantidadEntrada);
+        $presentacion->update(['costo_estandar'=>round($nuevoCosto,4)]);
     }
 }

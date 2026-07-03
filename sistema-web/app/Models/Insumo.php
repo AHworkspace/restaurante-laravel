@@ -17,7 +17,18 @@ class Insumo extends Model
         'categoria_id',
         'restaurante_id',
         'unidad_medida_id',
+        'tipo_uso',
+        'vendible_menu',
+        'precio_venta',
+        'cantidad_base_por_venta',
     ];
+
+    protected $casts = ['vendible_menu' => 'boolean', 'precio_venta' => 'decimal:2', 'cantidad_base_por_venta' => 'decimal:4'];
+
+    protected static function booted():void
+    {
+        static::created(function(Insumo $insumo){if(!$insumo->presentaciones()->exists())$insumo->presentaciones()->create(['nombre'=>$insumo->tipo_uso==='indirecto'?'A granel':'Presentación general','unidad_contenido_id'=>$insumo->unidad_medida_id,'predeterminada'=>true,'activa'=>true]);});
+    }
 
     public function unidad_medida()
     {
@@ -39,6 +50,16 @@ class Insumo extends Model
     public function movimiento_inventarios()
     {
         return $this->hasMany(MovimientoInventario::class);
+    }
+
+    public function lineasCompra(){return $this->hasMany(CompraLinea::class);}
+    public function presentaciones(){return $this->hasMany(InsumoPresentacion::class);}
+    public function presentacionPredeterminada(){return $this->hasOne(InsumoPresentacion::class)->where('predeterminada',true);}
+
+    public function menusDia()
+    {
+        return $this->belongsToMany(MenuDia::class, 'menus_dia_insumos')
+            ->withPivot(['cantidad', 'cantidad_inicial', 'precio_venta'])->withTimestamps();
     }
 
     // Función para obtener la cantidad total del insumo en el restaurante, sumando las cantidades de los movimientos de inventario de tipo entrada y restando las de tipo salida

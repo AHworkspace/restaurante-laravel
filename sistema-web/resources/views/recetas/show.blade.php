@@ -30,11 +30,8 @@ use Illuminate\Support\Facades\Storage;
             <div class="d-flex align-items-center mb-30">
                 @php
                     $imagenUrl = asset('images/recetas.jpg');
-                    if ($receta->imagen) {
-                        $rutaArchivo = storage_path('app/public/' . $receta->imagen);
-                        if (file_exists($rutaArchivo)) {
-                            $imagenUrl = asset('storage/' . $receta->imagen);
-                        }
+                    if ($receta->imagen && Storage::disk('public')->exists($receta->imagen)) {
+                        $imagenUrl = asset('storage/' . $receta->imagen);
                     }
                 @endphp
                 <div class="profile-image">

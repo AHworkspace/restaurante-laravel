@@ -5,14 +5,13 @@
     <div class="title mb-30"><h2>{{ $consumidor->nombre_completo }}</h2></div>
     <a class="btn btn-warning" href="{{ route('consumidores.edit', $consumidor) }}">Editar</a>
 </div>
-@if(session('success')) <div class="alert alert-success">{{ session('success') }}</div> @endif
 <div class="row">
     <div class="col-lg-7"><div class="card mb-3"><div class="card-body">
         <h5>Datos del consumidor</h5>
         <dl class="row mb-0">
             <dt class="col-sm-4">CI</dt><dd class="col-sm-8">{{ $consumidor->ci }}</dd>
             <dt class="col-sm-4">Codigo</dt><dd class="col-sm-8">{{ $consumidor->codigo_unico ?: 'Sin asignar' }}</dd>
-            <dt class="col-sm-4">Fuerza</dt><dd class="col-sm-8">{{ $consumidor->fuerza?->nombre ?: 'Sin asignar' }}</dd>
+            <dt class="col-sm-4">Segmento</dt><dd class="col-sm-8">{{ $consumidor->fuerza?->nombre ?: 'Sin asignar' }}</dd>
             <dt class="col-sm-4">Institucion</dt><dd class="col-sm-8">{{ $consumidor->institucion?->nombre ?: 'Sin asignar' }}</dd>
             <dt class="col-sm-4">Grado</dt><dd class="col-sm-8">{{ $consumidor->grado?->nombre ?: 'Sin asignar' }}</dd>
         </dl>
@@ -35,3 +34,4 @@
     </table></div>
 </div></div>
 @endsection
+

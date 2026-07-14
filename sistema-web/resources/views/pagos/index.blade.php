@@ -1,6 +1,11 @@
 @extends('layouts.app')
 
 @section('content')
+    @php
+        $hayFiltroReporte = collect(request()->except('page'))
+            ->filter(fn ($valor) => $valor !== null && $valor !== '' && $valor !== 'todos')
+            ->isNotEmpty();
+    @endphp
     <div class="title-wrapper pt-30">
         <div class="row align-items-center">
             <div class="col-md-6">
@@ -129,6 +134,9 @@
                     <table class="table">
                         <thead>
                             <tr>
+                                @if($hayFiltroReporte)
+                                    <th><button type="button" class="btn btn-sm btn-outline-primary reporte-select-all-top" data-target-sector="pagos">Seleccionar todos</button></th>
+                                @endif
                                 <th>ID</th>
                                 <th>Consumidor</th>
                                 <th>Monto</th>
@@ -144,6 +152,9 @@
                         <tbody>
                             @forelse($pagos as $pago)
                                 <tr>
+                                    @if($hayFiltroReporte)
+                                        <td><input type="checkbox" class="form-check-input reporte-row-checkbox" data-sector="pagos" value="{{ $pago->id }}" data-total="{{ $pago->monto }}"></td>
+                                    @endif
                                     <td>{{ $pago->id }}</td>
                                     <td>
                                         <strong>{{ $pago->consumidor->nombre_completo }}</strong><br>
@@ -191,7 +202,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="10" class="text-center">No se encontraron pagos</td>
+                                    <td colspan="{{ $hayFiltroReporte ? 11 : 10 }}" class="text-center">No se encontraron pagos</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -202,6 +213,9 @@
                 <div class="mt-3">
                     {{ $pagos->appends(request()->query())->links() }}
                 </div>
+                @if($hayFiltroReporte)
+                    @include('reportes._guardar-filtrado', ['sector' => 'pagos', 'titulo' => 'Guardar reporte de pagos'])
+                @endif
             </div>
         </div>
     </div>
@@ -257,4 +271,3 @@
         });
     </script>
 @endsection
-

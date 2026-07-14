@@ -28,4 +28,58 @@ class CompraLinea extends Model
         $empaques=(int)floor(($base+0.000001)/$factor);
         return ['empaques'=>$empaques,'sueltas'=>round($base-($empaques*$factor),4),'es_empaque'=>true];
     }
+
+    public function unidadCompraNombre(): string
+    {
+        return $this->formatoEmpaque?->nombre
+            ?: ($this->unidadMedida?->abreviatura ?: $this->insumo?->unidad_medida?->abreviatura ?: 'unidad');
+    }
+
+    public function unidadInventarioNombre(): string
+    {
+        return $this->unidadInventario?->abreviatura
+            ?: $this->presentacion?->unidadStock()?->abreviatura
+            ?: $this->insumo?->unidad_medida?->abreviatura
+            ?: 'unidad';
+    }
+
+    public function cantidadCompraTexto(?float $cantidad = null): string
+    {
+        $cantidad ??= (float) $this->cantidad_pedida;
+        $texto = number_format($cantidad, 2).' '.$this->unidadCompraNombre();
+        $base = $cantidad * (float) ($this->factor_compra_base ?: 1);
+
+        if ($this->formatoEmpaque || abs($base - $cantidad) > 0.0001) {
+            $texto .= ' = '.number_format($base, 2).' '.$this->unidadInventarioNombre();
+        }
+
+        if ((float) $this->cantidad_suelta > 0) {
+            $texto .= ' + '.number_format((float) $this->cantidad_suelta, 2).' '.$this->unidadInventarioNombre().' sueltas';
+        }
+
+        return $texto;
+    }
+
+    public function entradaInventarioTexto(?float $cantidadBase = null): string
+    {
+        $cantidadBase ??= (float) $this->cantidad_pedida_base;
+        return number_format($cantidadBase, 2).' '.$this->unidadInventarioNombre();
+    }
+
+    public function faltanteTexto(): string
+    {
+        $datos = $this->faltante_desglosado;
+        if (! $datos['es_empaque']) {
+            return number_format((float) $datos['empaques'], 2).' '.$this->unidadCompraNombre();
+        }
+
+        $texto = number_format((float) $datos['empaques'], 2).' '.$this->unidadCompraNombre();
+        if ((float) $datos['sueltas'] > 0) {
+            $texto .= ' y '.number_format((float) $datos['sueltas'], 2).' '.$this->unidadInventarioNombre();
+        }
+
+        $texto .= ' = '.number_format((float) $this->cantidad_faltante_base, 2).' '.$this->unidadInventarioNombre();
+
+        return $texto;
+    }
 }

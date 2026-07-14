@@ -89,6 +89,43 @@ class PurchaseReceptionTest extends TestCase
         $this->assertSame('pendiente', $linea->compra->fresh()->estado);
     }
 
+    public function test_inventory_entry_requires_purchase_line(): void
+    {
+        $user=User::role(['admin','director'])->firstOrFail();
+        $insumo=Insumo::firstOrFail();
+        $presentacion=$insumo->presentaciones()->firstOrFail();
+
+        $this->actingAs($user)->from(route('movimientos.create'))->post(route('movimientos.store'),[
+            'insumo_id'=>$insumo->id,
+            'presentacion_id'=>$presentacion->id,
+            'unidad_medida_id'=>$presentacion->unidad_stock_id ?: $insumo->unidad_medida_id,
+            'cantidad'=>1,
+            'tipo'=>'entrada',
+            'motivo'=>'Entrada manual',
+            'fecha'=>now()->toDateString(),
+        ])->assertRedirect(route('movimientos.create'))->assertSessionHasErrors('compra_linea_id');
+    }
+
+    public function test_inventory_output_uses_selected_presentation_stock(): void
+    {
+        $user=User::role(['admin','director'])->firstOrFail();
+        $unidad=UnidadMedida::where('nombre','Unidad')->firstOrFail();
+        $insumo=Insumo::create(['nombre'=>'Salida por presentacion '.uniqid(),'stock_minimo'=>0,'categoria_id'=>Categoria::firstOrFail()->id,'unidad_medida_id'=>$unidad->id]);
+        $conStock=$insumo->presentaciones()->create(['nombre'=>'Con stock','unidad_stock_id'=>$unidad->id,'activa'=>true]);
+        $sinStock=$insumo->presentaciones()->create(['nombre'=>'Sin stock','unidad_stock_id'=>$unidad->id,'activa'=>true]);
+        MovimientoInventario::create(['insumo_id'=>$insumo->id,'presentacion_id'=>$conStock->id,'tipo'=>'entrada','cantidad'=>5,'cantidad_original'=>5,'cantidad_convertida'=>5,'unidad_medida_id'=>$unidad->id,'unidad_inventario_id'=>$unidad->id,'motivo'=>'Stock inicial']);
+
+        $this->actingAs($user)->from(route('movimientos.create'))->post(route('movimientos.store'),[
+            'insumo_id'=>$insumo->id,
+            'presentacion_id'=>$sinStock->id,
+            'unidad_medida_id'=>$unidad->id,
+            'cantidad'=>1,
+            'tipo'=>'salida',
+            'motivo'=>'Salida prueba',
+            'fecha'=>now()->toDateString(),
+        ])->assertRedirect(route('movimientos.create'))->assertSessionHasErrors('cantidad');
+    }
+
     public function test_optional_brand_is_preserved_from_purchase_to_reception(): void
     {
         $user = User::role(['admin', 'director'])->firstOrFail();
@@ -169,11 +206,40 @@ class PurchaseReceptionTest extends TestCase
     {
         $kg=UnidadMedida::where('nombre','Kilogramo')->firstOrFail();
         $arroba=UnidadMedida::where('nombre','Arroba')->firstOrFail();
-        $linea=new CompraLinea(['cantidad_pedida'=>0.5,'cantidad_pedida_base'=>5.6699,'cantidad_recibida_base'=>0,'factor_compra_base'=>11.3398,'cantidad_contenido'=>null,'unidad_medida_id'=>$arroba->id,'unidad_inventario_id'=>$kg->id]);
+        $linea=new CompraLinea(['cantidad_pedida'=>0.5,'cantidad_pedida_base'=>6,'cantidad_recibida_base'=>0,'factor_compra_base'=>12,'cantidad_contenido'=>null,'unidad_medida_id'=>$arroba->id,'unidad_inventario_id'=>$kg->id]);
 
         $this->assertFalse($linea->faltante_desglosado['es_empaque']);
         $this->assertEqualsWithDelta(0.5,$linea->faltante_desglosado['empaques'],0.0001);
         $this->assertSame(0,$linea->faltante_desglosado['sueltas']);
+    }
+
+    public function test_half_arroba_purchase_ignores_empty_content_unit(): void
+    {
+        $user=User::role(['admin','director'])->firstOrFail();
+        $proveedor=Proveedor::firstOrFail();
+        $kg=UnidadMedida::where('nombre','Kilogramo')->firstOrFail();
+        $arroba=UnidadMedida::where('nombre','Arroba')->firstOrFail();
+        $insumo=Insumo::create(['nombre'=>'Cebolla blanca '.uniqid(),'stock_minimo'=>0,'categoria_id'=>Categoria::firstOrFail()->id,'unidad_medida_id'=>$kg->id]);
+        $presentacion=$insumo->presentaciones()->create(['nombre'=>'blanca','unidad_stock_id'=>$kg->id,'activa'=>true,'predeterminada'=>true]);
+
+        $this->actingAs($user)->post(route('compras.store'),[
+            'proveedor_id'=>$proveedor->id,
+            'fecha_compra'=>now()->toDateString(),
+            'lineas'=>[[
+                'insumo_id'=>$insumo->id,
+                'presentacion_id'=>$presentacion->id,
+                'unidad_medida_id'=>$arroba->id,
+                'unidad_contenido_id'=>$kg->id,
+                'cantidad_pedida'=>0.5,
+                'precio_unitario'=>45,
+                'unidad_precio_id'=>$arroba->id,
+            ]],
+        ])->assertRedirect();
+
+        $linea=CompraLinea::where('insumo_id',$insumo->id)->latest('id')->firstOrFail();
+        $this->assertNull($linea->unidad_contenido_id);
+        $this->assertEqualsWithDelta(6,(float)$linea->cantidad_pedida_base,0.0001);
+        $this->assertEqualsWithDelta(22.50,(float)$linea->costo_linea,0.01);
     }
 
     public function test_package_equivalence_controls_total_and_inventory_entry(): void

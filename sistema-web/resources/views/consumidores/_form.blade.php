@@ -22,7 +22,7 @@
                value="{{ old('email', $consumidor->email ?? '') }}">
     </div>
     <div class="col-md-6 mb-3">
-        <label class="form-label" for="fuerza_id">Fuerza</label>
+        <label class="form-label" for="fuerza_id">Segmento de cliente</label>
         <select class="form-control" id="fuerza_id" name="fuerza_id">
             <option value="">Sin asignar</option>
             @foreach($fuerzas as $fuerza)

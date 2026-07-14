@@ -22,17 +22,12 @@
                     </div>
                 </div>
 
-                @if ($message = Session::get('success'))
-                    <div class="alert alert-success">
-                        <p>{{ $message }}</p>
-                    </div>
-                @endif
-
                 <div class="card-body">
                     @php
                         $tipoFiltro = request('tipo');
                         $esEntrada = $tipoFiltro === 'entrada';
                         $esSalida = $tipoFiltro === 'salida';
+                        $puedeGuardarSeleccion = in_array($tipoFiltro, ['entrada', 'salida'], true);
                     @endphp
                     <form method="GET" class="mb-3 row g-2">
                         <div class="col-md-3">
@@ -58,9 +53,9 @@
                                 <tr>
                                     <th>No</th>
                                     <th>Insumo</th>
-                                    <th>Cantidad</th>
-                                    <th>Unidad</th>
-                                    @if($esEntrada)
+                                    <th>Cantidad registrada</th>
+                                    <th>Cómo afecta al inventario</th>
+                                    @if($puedeGuardarSeleccion)
                                         <th>Compra</th>
                                         <th>Proveedor</th>
                                     @elseif($esSalida)
@@ -85,6 +80,7 @@
                                         $cantidadMostrar = $movimiento->cantidad_original ?? $movimiento->cantidad;
                                         $unidadMostrar = $movimiento->unidad_medida ?? $movimiento->insumo->unidad_medida;
                                         $unidadInventario = $movimiento->unidadInventario ?? $movimiento->compraLinea?->unidadInventario ?? $movimiento->insumo->unidad_medida;
+                                        $lineaCompra = $movimiento->compraLinea;
                                         $mostrarConversion = $movimiento->cantidad_convertida &&
                                                              $movimiento->cantidad_original &&
                                                              abs($movimiento->cantidad_original - $movimiento->cantidad_convertida) > 0.001;
@@ -94,29 +90,51 @@
                                         <td>{{ ++$i }}</td>
                                         <td>{{ $movimiento->insumo->nombre }}@if($movimiento->presentacion)<br><small class="text-muted">{{ $movimiento->presentacion->nombre }}</small>@endif</td>
                                         <td>
-                                            {{ number_format($cantidadMostrar, 2) }}
-                                            @if((float)$movimiento->cantidad_suelta > 0)
-                                                {{ $unidadMostrar->abreviatura }} y {{ number_format($movimiento->cantidad_suelta,2) }} {{ $unidadInventario?->abreviatura }}
-                                            @endif
-                                            @if($mostrarConversion)
+                                            @if($lineaCompra)
+                                                <small class="text-muted d-block">Se recibió:</small>
+                                                <strong>{{ number_format($cantidadMostrar, 2) }} {{ $lineaCompra->unidadCompraNombre() }}</strong>
+                                                @if((float)$movimiento->cantidad_suelta > 0)
+                                                    <br><small class="text-muted">+ {{ number_format($movimiento->cantidad_suelta,2) }} {{ $lineaCompra->unidadInventarioNombre() }} sueltas</small>
+                                                @endif
                                                 <br>
                                                 <small class="text-muted">
-                                                    ({{ number_format($movimiento->cantidad_convertida, 2) }}
-                                                    {{ $unidadInventario?->abreviatura }})
+                                                    Compra registrada en {{ $lineaCompra->unidadCompraNombre() }}
                                                 </small>
+                                            @else
+                                                <small class="text-muted d-block">{{ $movimiento->tipo === 'salida' ? 'Se descontó:' : 'Se registró:' }}</small>
+                                                <strong>{{ number_format($cantidadMostrar, 2) }} {{ $unidadMostrar?->abreviatura }}</strong>
+                                                @if((float)$movimiento->cantidad_suelta > 0)
+                                                    <br><small class="text-muted">+ {{ number_format($movimiento->cantidad_suelta,2) }} {{ $unidadInventario?->abreviatura }} sueltas</small>
+                                                @endif
+                                                @if($mostrarConversion)
+                                                    <br>
+                                                    <small class="text-muted">
+                                                        Equivale a {{ number_format($movimiento->cantidad_convertida, 2) }}
+                                                        {{ $unidadInventario?->abreviatura }}
+                                                    </small>
+                                                @endif
                                             @endif
                                         </td>
                                         <td>
-                                            @if((float)$movimiento->cantidad_suelta <= 0){{ $unidadMostrar->abreviatura }}@elseTotal: {{ number_format($movimiento->cantidad_convertida,2) }} {{ $unidadInventario?->abreviatura }}@endif
+                                            @if($lineaCompra)
+                                                <strong>{{ number_format((float) $movimiento->cantidad_convertida, 2) }} {{ $lineaCompra->unidadInventarioNombre() }}</strong>
+                                                <br><small class="text-muted">Entra al stock como inventario real.</small>
+                                            @elseif((float)$movimiento->cantidad_suelta <= 0)
+                                                <strong>{{ number_format((float) ($movimiento->cantidad_convertida ?? $movimiento->cantidad), 2) }} {{ $unidadInventario?->abreviatura ?: $unidadMostrar?->abreviatura }}</strong>
+                                                <br><small class="text-muted">{{ $movimiento->tipo === 'salida' ? 'Sale del stock.' : 'Entra al stock.' }}</small>
+                                            @else
+                                                <strong>{{ number_format($movimiento->cantidad_convertida, 2) }} {{ $unidadInventario?->abreviatura }}</strong>
+                                                <br><small class="text-muted">Total que afecta al stock.</small>
+                                            @endif
                                         </td>
-                                        @if($esEntrada)
+                                        @if($puedeGuardarSeleccion)
                                             <td>
                                                 @if($movimiento->compra)
                                                      <strong>Bs. {{ number_format($movimiento->compra->costo_total, 2) }}</strong>
                                                     @if($movimiento->compraLinea)
                                                         <div><small>Compra {{ $movimiento->compra->numero_documento ?: '#'.$movimiento->compra_id }}, línea #{{ $movimiento->compra_linea_id }}</small></div>
                                                         <div><small>Marca/empresa: {{ $movimiento->compraLinea->marca?->nombre ?: 'Sin especificar' }}</small></div>
-                                                        <div><small class="{{ $movimiento->compraLinea->cantidad_faltante > 0 ? 'text-danger' : 'text-success' }}">Faltante: {{ number_format($movimiento->compraLinea->cantidad_faltante, 2) }}</small></div>
+                                                        <div><small class="{{ $movimiento->compraLinea?->cantidad_faltante_base > 0 ? 'text-danger' : 'text-success' }}">Faltante: {{ $movimiento->compraLinea->faltanteTexto() }}</small></div>
                                                     @endif
                                                     @if($movimiento->compra->descripcion)
                                                         <div><small class="text-muted">Detalle: {{ $movimiento->compra->descripcion }}</small></div>
@@ -169,7 +187,7 @@
                                                     <input type="checkbox"
                                                            class="form-check-input movement-checkbox"
                                                            value="{{ $movimiento->id }}"
-                                                           data-cost="{{ $movimiento->compra->costo_total ?? 0 }}"
+                                                           data-cost="{{ $esEntrada ? ($movimiento->compra->costo_total ?? 0) : (($movimiento->presentacion?->costo_estandar ?? 0) * ($movimiento->cantidad_convertida ?? $movimiento->cantidad ?? 0)) }}"
                                                            data-date="{{ $movimiento->created_at->format('Y-m-d') }}">
                                                 </div>
                                             </td>
@@ -179,16 +197,16 @@
                             </tbody>
                         </table>
                     </div>
-                    @if($esEntrada)
+                    @if($puedeGuardarSeleccion)
                         <div class="card mt-3" id="selection-panel" style="display: none;">
                             <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
                                 <div>
                                     <strong>Seleccionados:</strong> <span id="selected-count">0</span>
-                                    <span class="ms-3"><strong>Total costo:</strong> Bs. <span id="selected-total">0.00</span></span>
+                                    <span class="ms-3"><strong>{{ $esSalida ? 'Costo estimado' : 'Total costo' }}:</strong> Bs. <span id="selected-total">0.00</span></span>
                                 </div>
                                 <div class="d-flex flex-wrap gap-2 align-items-center">
                                     <input type="text" class="form-control" id="selection-name" placeholder="Nombre del reporte (opcional)">
-                                    <button type="button" class="btn btn-primary" id="save-selection-btn">Guardar selección</button>
+                                    <button type="button" class="btn btn-primary" id="save-selection-btn">Guardar reporte</button>
                                 </div>
                                 <div class="flex-grow-1">
                                     <small id="selection-message" class="text-success"></small>

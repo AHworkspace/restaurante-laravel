@@ -40,6 +40,21 @@ class Receta extends Model
             ->withTimestamps();    // Incluye marcas de tiempo
     }
 
+    public function ventas()
+    {
+        return $this->hasMany(Venta::class);
+    }
+
+    public function consumos()
+    {
+        return $this->hasMany(Consumo::class);
+    }
+
+    public function movimientosInventario()
+    {
+        return $this->hasMany(MovimientoInventario::class);
+    }
+
     // calcular cantidad de insumos gastados en una receta
     public function insumosGastados($cantidadRecetas)
     {

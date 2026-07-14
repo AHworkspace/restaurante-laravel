@@ -2,8 +2,6 @@
 @php use Illuminate\Support\Facades\Storage; @endphp
 @section('content')
 <div class="title-wrapper pt-30"><div class="row align-items-center"><div class="col-md-8"><div class="title mb-30"><h2>{{ $insumo->nombre }}</h2></div></div><div class="col-md-4 text-end"><a class="btn btn-secondary" href="{{ route('insumos.index') }}">Volver</a></div></div></div>
-@if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
-@if(session('error'))<div class="alert alert-warning">{{ session('error') }}</div>@endif
 <div class="card-style-3 mb-30"><div class="card-content"><div class="row g-3"><div class="col-md-4"><strong>Unidad general</strong><div>{{ $insumo->unidad_medida?->nombre?:'-' }} @if($insumo->unidad_medida)({{ $insumo->unidad_medida->abreviatura }})@endif</div></div><div class="col-md-8"><strong>Descripcion</strong><div>{{ $insumo->descripcion?:'Sin descripcion' }}</div></div><div class="col-12"><strong>Presentaciones registradas:</strong> {{ $insumo->presentaciones->count() }}</div></div></div></div>
 
 <div class="card-style-3 mb-30"><div class="card-content">
@@ -28,3 +26,4 @@
 
 <div class="card-style-3 mb-30"><div class="card-content"><h4 class="mb-3">Procedencia registrada en compras</h4><div class="table-responsive"><table class="table"><thead><tr><th>Fecha</th><th>Presentacion</th><th>Proveedor</th><th>Marca</th><th>Pedido</th><th>Costo</th></tr></thead><tbody>@forelse($insumo->lineasCompra->sortByDesc(fn($l)=>$l->compra?->fecha_compra) as $linea)<tr><td>{{ $linea->compra?->fecha_compra?->format('d/m/Y') }}</td><td>{{ $linea->presentacion?->nombre }}</td><td>{{ $linea->compra?->proveedorRel?->nombre?:$linea->compra?->proveedor }}</td><td>{{ $linea->marca?->nombre?:'Sin especificar' }}</td><td>{{ number_format($linea->cantidad_pedida,2) }} {{ $linea->unidadMedida?->abreviatura }}</td><td>Bs {{ number_format($linea->costo_linea,2) }}</td></tr>@empty<tr><td colspan="6" class="text-center">Sin compras vinculadas.</td></tr>@endforelse</tbody></table></div></div></div>
 @endsection
+

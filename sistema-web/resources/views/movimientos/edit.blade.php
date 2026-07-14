@@ -22,12 +22,22 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label for="cantidad" class="form-label">Cantidad</label>
+                            <label for="cantidad" class="form-label">Cantidad que se registra</label>
                             <input type="number" name="cantidad" id="cantidad" class="form-control" min="0.01" step="0.01" required value="{{ old('cantidad', $movimiento->cantidad_original ?? $movimiento->cantidad) }}">
+                            @if($movimiento->compraLinea)
+                                <small class="form-text text-muted">
+                                    Esta entrada viene de una compra: la cantidad está en {{ $movimiento->compraLinea->unidadCompraNombre() }}.
+                                    En el inventario equivale a {{ number_format((float) ($movimiento->cantidad_convertida ?? 0), 2) }} {{ $movimiento->compraLinea->unidadInventarioNombre() }}.
+                                </small>
+                            @else
+                                <small class="form-text text-muted">
+                                    En salidas, esta cantidad se descuenta de la presentación seleccionada usando la unidad de medida elegida.
+                                </small>
+                            @endif
                         </div>
                         <div class="mb-3"><label for="presentacion_id" class="form-label">Presentación</label><select name="presentacion_id" id="presentacion_id" class="form-control">@foreach($presentaciones as $presentacion)<option value="{{ $presentacion->id }}" data-insumo="{{ $presentacion->insumo_id }}" @selected(old('presentacion_id',$movimiento->presentacion_id)==$presentacion->id)>{{ $presentacion->insumo->nombre }} · {{ $presentacion->nombre }}</option>@endforeach</select></div>
                         <div class="mb-3">
-                            <label for="unidad_medida_id" class="form-label">Unidad de Medida</label>
+                            <label for="unidad_medida_id" class="form-label">Unidad de medida del movimiento</label>
                             <select name="unidad_medida_id" id="unidad_medida_id" class="form-control">
                                 <option value="">Seleccione unidad (por defecto: unidad del insumo)</option>
                                 @foreach($unidades as $unidad)
@@ -36,7 +46,7 @@
                                     </option>
                                 @endforeach
                             </select>
-                            <small id="unidad-base-info" class="form-text text-muted"></small>
+                            <small id="unidad-base-info" class="form-text text-muted">Solo medidas reales: kg, litro, unidad, arroba, etc. El empaque se maneja desde la compra.</small>
                             <small id="conversion-info" class="form-text text-info" style="display: none;"></small>
                             @if($movimiento->cantidad_convertida && $movimiento->cantidad_original != $movimiento->cantidad_convertida)
                                 <small class="form-text text-success">
@@ -115,7 +125,7 @@
             'costo_estandar' => $insumo->costo_estandar,
         ]];
     })->toArray();
-    $presentacionesJson=$presentaciones->mapWithKeys(fn($p)=>[$p->id=>['costo_estandar'=>(float)$p->costo_estandar]])->toArray();
+    $presentacionesJson=$presentaciones->mapWithKeys(fn($p)=>[$p->id=>['costo_estandar'=>(float)$p->costo_estandar,'stock'=>(float)$p->stockDisponible()]])->toArray();
 
     // Agregar conversiones de unidades para el cálculo del costo
     $conversionesJson = \App\Models\ConversionesUnidades::with(['unidadOrigen', 'unidadDestino'])->get()
@@ -133,6 +143,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const insumoSelect = document.getElementById('insumo_id');
     const unidadSelect = document.getElementById('unidad_medida_id');
     const cantidadInput = document.getElementById('cantidad');
+    const presentacionSelect = document.getElementById('presentacion_id');
     const unidadBaseInfo = document.getElementById('unidad-base-info');
     const conversionInfo = document.getElementById('conversion-info');
     const tipoSelect = document.getElementById('tipo');
@@ -140,6 +151,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const salidaFields = document.getElementById('salida-fields');
     const costoInput = document.getElementById('costo_compra');
     const costoSugerido = document.getElementById('costo-sugerido');
+    const presentacionAyuda = document.createElement('small');
+    presentacionAyuda.className = 'form-text text-muted';
+    presentacionSelect?.parentElement?.appendChild(presentacionAyuda);
 
     const insumosData = @json($insumosJson);
     const presentacionesData = @json($presentacionesJson);
@@ -271,11 +285,29 @@ document.addEventListener('DOMContentLoaded', function() {
         if (tipoSelect.value === 'entrada') {
             entradaFields.style.display = 'block';
             salidaFields.style.display = 'none';
+            filtrarPresentacionesPorStock(false);
             actualizarCostoSugerido();
         } else {
             entradaFields.style.display = 'none';
             salidaFields.style.display = 'block';
+            filtrarPresentacionesPorStock(true);
         }
+    }
+
+    function filtrarPresentacionesPorStock(soloConStock) {
+        if (!presentacionSelect) return;
+        presentacionSelect.querySelectorAll('option').forEach(option => {
+            const data = presentacionesData[option.value] || {};
+            const stock = Number(data.stock || 0);
+            const esActual = option.selected;
+            option.hidden = soloConStock && stock <= 0 && !esActual;
+        });
+        if (soloConStock && presentacionSelect.value && presentacionSelect.selectedOptions[0]?.hidden) {
+            presentacionSelect.value = '';
+        }
+        presentacionAyuda.textContent = soloConStock
+            ? 'Solo se muestran presentaciones con stock disponible. La presentación actual queda visible si ya estaba usada en este movimiento.'
+            : 'En entradas asociadas a compra, la presentación viene de la línea recibida.';
     }
 
     function actualizarCostoSugerido() {

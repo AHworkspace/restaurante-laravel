@@ -1,7 +1,6 @@
 @extends('layouts.app')
 @section('content')
 <div class="title-wrapper pt-30"><div class="title mb-30"><h2>Configuraciones - Permisos</h2></div></div>
-@if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
 @if($errors->any())<div class="alert alert-danger">{{ $errors->first() }}</div>@endif
 
 <div class="card-style-3 mb-30"><div class="card-content">
@@ -29,3 +28,4 @@
 @endif
 <script>document.querySelectorAll('.selector-grupo').forEach(function(control){control.addEventListener('change',function(){document.querySelectorAll('.'+this.dataset.target).forEach(function(item){item.checked=control.checked;});});});</script>
 @endsection
+

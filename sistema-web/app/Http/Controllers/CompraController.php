@@ -31,6 +31,7 @@ class CompraController extends Controller
     public function create(){return view('compras.create',$this->catalogos());}
     public function store(Request $request)
     {
+        $this->limpiarContenidoVacio($request);
         $data=$this->validar($request);
         $request->validate(['lineas.*.formato_empaque_id'=>['nullable','exists:formatos_empaque,id'],'lineas.*.estructura_empaque'=>['nullable','array','max:3'],'lineas.*.estructura_empaque.*.cantidad'=>['required_with:lineas.*.estructura_empaque','numeric','gt:0'],'lineas.*.estructura_empaque.*.formato_empaque_id'=>['required_with:lineas.*.estructura_empaque','exists:formatos_empaque,id'],'lineas.*.estructura_empaque.*.contenido'=>['nullable','numeric','gt:0'],'lineas.*.estructura_empaque.*.unidad_medida_id'=>['nullable','exists:unidad_medidas,id','required_with:lineas.*.estructura_empaque.*.contenido']]);
         foreach($data['lineas'] as $indice=>&$linea){$linea['formato_empaque_id']=$request->input("lineas.$indice.formato_empaque_id")?:null;$linea['estructura_empaque']=array_values($request->input("lineas.$indice.estructura_empaque",[]));}
@@ -49,6 +50,16 @@ class CompraController extends Controller
         return back()->with('success','Abono registrado.');
     }
     private function validar(Request $request):array{return $request->validate(['proveedor_id'=>['required','exists:proveedores,id'],'fecha_compra'=>['required','date'],'numero_documento'=>['nullable','string','max:100'],'descripcion'=>['nullable','string'],'lineas'=>['required','array','min:1'],'lineas.*.insumo_id'=>['required','exists:insumos,id'],'lineas.*.presentacion_id'=>['required','exists:insumo_presentaciones,id'],'lineas.*.marca_id'=>['nullable','exists:marcas,id'],'lineas.*.unidad_medida_id'=>['required','exists:unidad_medidas,id'],'lineas.*.unidad_precio_id'=>['nullable','exists:unidad_medidas,id'],'lineas.*.cantidad_pedida'=>['required','numeric','min:0.0001'],'lineas.*.precio_unitario'=>['nullable','numeric','min:0'],'lineas.*.factor_compra_base'=>['nullable','numeric','gt:0'],'lineas.*.cantidad_contenido'=>['nullable','numeric','gt:0','required_with:lineas.*.unidad_contenido_id'],'lineas.*.cantidad_suelta'=>['nullable','numeric','min:0'],'lineas.*.unidad_contenido_id'=>['nullable','exists:unidad_medidas,id','required_with:lineas.*.cantidad_contenido'],'lineas.*.factor_precio_base'=>['nullable','numeric','gt:0'],'lineas.*.costo_linea'=>['nullable','numeric','min:0']]);}
+    private function limpiarContenidoVacio(Request $request):void
+    {
+        $lineas=$request->input('lineas',[]);
+        foreach($lineas as $indice=>$linea){
+            if(empty($linea['cantidad_contenido'])){
+                unset($lineas[$indice]['unidad_contenido_id']);
+            }
+        }
+        $request->merge(['lineas'=>$lineas]);
+    }
     private function guardarLineas(Compra $compra,array $lineas):void
     {
         $total=0;$cantidad=0;
@@ -73,5 +84,5 @@ class CompraController extends Controller
         }
         $compra->update(['costo_total'=>round($total,2),'cantidad_pedida'=>$cantidad,'cantidad_recibida'=>0,'insumo_id'=>$lineas[0]['insumo_id']]);
     }
-    private function catalogos():array{$formatos=FormatoEmpaque::where('activo',true)->orderBy('nombre')->get();$idsEmpaque=$formatos->where('es_granel',false)->where('nombre','!=','Unidad')->pluck('unidad_medida_id')->filter();$unidades=UnidadMedida::whereNotIn('id',$idsEmpaque)->orderBy('nombre')->get();return ['proveedores'=>Proveedor::with('marcas')->orderBy('nombre')->get(),'insumos'=>Insumo::with(['unidad_medida','presentaciones'=>fn($q)=>$q->where('activa',true)->with('unidadStockRelacion')])->orderBy('nombre')->get(),'presentaciones'=>InsumoPresentacion::where('activa',true)->with('unidadStockRelacion')->orderBy('nombre')->get(),'unidades'=>$unidades,'formatos'=>$formatos,'marcas'=>Marca::where('activo',true)->with('proveedores')->orderBy('nombre')->get()];}
+    private function catalogos():array{$formatos=FormatoEmpaque::where('activo',true)->orderBy('nombre')->get();$unidades=UnidadMedida::reales();return ['proveedores'=>Proveedor::with('marcas')->orderBy('nombre')->get(),'insumos'=>Insumo::with(['unidad_medida','presentaciones'=>fn($q)=>$q->where('activa',true)->with('unidadStockRelacion')])->orderBy('nombre')->get(),'presentaciones'=>InsumoPresentacion::where('activa',true)->with('unidadStockRelacion')->orderBy('nombre')->get(),'unidades'=>$unidades,'formatos'=>$formatos,'marcas'=>Marca::where('activo',true)->with('proveedores')->orderBy('nombre')->get()];}
 }

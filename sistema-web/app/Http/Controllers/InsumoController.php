@@ -11,6 +11,7 @@ use App\Helpers\HistorialHelper;
 use App\Models\InsumoPresentacion;
 use Illuminate\Support\Facades\DB;
 use App\Models\FormatoEmpaque;
+use Illuminate\Validation\Rule;
 
 class InsumoController extends Controller
 {
@@ -49,7 +50,7 @@ class InsumoController extends Controller
     public function create()
     {
         $categorias = Categoria::all();
-        $unidades = UnidadMedida::all();
+        $unidades = UnidadMedida::reales();
         return view('insumos.create', compact('categorias', 'unidades'));
     }
 
@@ -61,7 +62,7 @@ class InsumoController extends Controller
         $validated = $request->validate([
             'nombre' => 'required|string|max:50|unique:insumos,nombre',
             'descripcion' => 'nullable|string|max:500',
-            'unidad_medida_id' => 'required|exists:unidad_medidas,id',
+            'unidad_medida_id' => ['required', Rule::in(UnidadMedida::idsReales())],
         ]);
         $categoria = Categoria::firstOrFail();
 
@@ -87,7 +88,7 @@ class InsumoController extends Controller
     public function show(Insumo $insumo)
     {
         $insumo->load(['unidad_medida','presentaciones.categoria','presentaciones.formatoEmpaque','presentaciones.unidadContenido','presentaciones.unidadStockRelacion','presentaciones.unidadEmpaque','presentaciones.movimientos','lineasCompra.compra.proveedorRel','lineasCompra.marca','lineasCompra.unidadMedida','lineasCompra.presentacion']);
-        $unidades=UnidadMedida::orderBy('nombre')->get();
+        $unidades=UnidadMedida::reales();
         return view('insumos.show',compact('insumo','unidades'));
     }
 
@@ -97,7 +98,7 @@ class InsumoController extends Controller
     public function edit(Insumo $insumo)
     {
         $categorias = Categoria::all();
-        $unidades = UnidadMedida::all();
+        $unidades = UnidadMedida::reales();
         return view('insumos.edit', compact('insumo', 'categorias', 'unidades'));
     }
 
@@ -109,7 +110,7 @@ class InsumoController extends Controller
         $data = $request->validate([
             'nombre' => 'required|string|max:50|unique:insumos,nombre,'.$insumo->id,
             'descripcion' => 'nullable|string|max:500',
-            'unidad_medida_id' => 'required|exists:unidad_medidas,id',
+            'unidad_medida_id' => ['required', Rule::in(UnidadMedida::idsReales())],
         ]);
 
         $insumo->update($data);
@@ -160,12 +161,12 @@ class InsumoController extends Controller
 
     public function createPresentacion(Insumo $insumo)
     {
-        $insumo->load('categoria');$presentacion=null;$unidades=UnidadMedida::orderBy('nombre')->get();$categorias=Categoria::orderBy('nombre')->get();$formatos=FormatoEmpaque::where('activo',true)->orderBy('nombre')->get();return view('insumos.presentacion',compact('insumo','presentacion','unidades','categorias','formatos'));
+        $insumo->load('categoria');$presentacion=null;$unidades=UnidadMedida::reales();$categorias=Categoria::orderBy('nombre')->get();$formatos=FormatoEmpaque::where('activo',true)->orderBy('nombre')->get();return view('insumos.presentacion',compact('insumo','presentacion','unidades','categorias','formatos'));
     }
 
     public function editPresentacion(Insumo $insumo,InsumoPresentacion $presentacion)
     {
-        abort_unless($presentacion->insumo_id===$insumo->id,404);$insumo->load('categoria');$unidades=UnidadMedida::orderBy('nombre')->get();$categorias=Categoria::orderBy('nombre')->get();$formatos=FormatoEmpaque::where('activo',true)->orderBy('nombre')->get();return view('insumos.presentacion',compact('insumo','presentacion','unidades','categorias','formatos'));
+        abort_unless($presentacion->insumo_id===$insumo->id,404);$insumo->load('categoria');$unidades=UnidadMedida::reales();$categorias=Categoria::orderBy('nombre')->get();$formatos=FormatoEmpaque::where('activo',true)->orderBy('nombre')->get();return view('insumos.presentacion',compact('insumo','presentacion','unidades','categorias','formatos'));
     }
 
     public function updatePresentacion(Request $request,Insumo $insumo,InsumoPresentacion $presentacion)
@@ -173,7 +174,7 @@ class InsumoController extends Controller
         abort_unless($presentacion->insumo_id===$insumo->id,404);$data=$this->validarPresentacion($request,$presentacion);
         if($request->hasFile('imagen')){if($presentacion->imagen)Storage::disk('public')->delete($presentacion->imagen);$data['imagen']=$request->file('imagen')->store('presentaciones','public');}
         DB::transaction(function()use($insumo,$presentacion,$data){if($data['predeterminada'])$insumo->presentaciones()->where('id','!=',$presentacion->id)->update(['predeterminada'=>false]);$presentacion->update($data);});
-        return back()->with('success','Presentación actualizada.');
+        return redirect()->route('insumos.show',$insumo)->with('success','Presentacion actualizada.');
     }
 
     public function destroyPresentacion(Insumo $insumo,InsumoPresentacion $presentacion)
@@ -189,7 +190,8 @@ class InsumoController extends Controller
 
     private function validarPresentacion(Request $request,?InsumoPresentacion $presentacion=null):array
     {
-        $data=$request->validate(['nombre'=>['required','string','max:100'],'descripcion'=>['nullable','string','max:255'],'categoria_id'=>['nullable','exists:categorias,id'],'tipo_uso'=>['nullable','in:indirecto,directo,mixto'],'contenido'=>['nullable','numeric','gt:0'],'unidad_contenido_id'=>['nullable','exists:unidad_medidas,id'],'unidad_stock_id'=>['nullable','exists:unidad_medidas,id'],'stock_minimo'=>['nullable','numeric','min:0'],'formato_empaque_id'=>['nullable','exists:formatos_empaque,id'],'codigo_barras'=>['nullable','string','max:100','unique:insumo_presentaciones,codigo_barras'.($presentacion?->id?','.$presentacion->id:'')],'imagen'=>['nullable','image','max:2048'],'retornable'=>['nullable','boolean'],'predeterminada'=>['nullable','boolean'],'activa'=>['nullable','boolean']]);
+        $idsUnidades=UnidadMedida::idsReales();
+        $data=$request->validate(['nombre'=>['required','string','max:100'],'descripcion'=>['nullable','string','max:255'],'categoria_id'=>['nullable','exists:categorias,id'],'tipo_uso'=>['nullable','in:indirecto,directo,mixto'],'contenido'=>['nullable','numeric','gt:0'],'unidad_contenido_id'=>['nullable',Rule::in($idsUnidades)],'unidad_stock_id'=>['nullable',Rule::in($idsUnidades)],'stock_minimo'=>['nullable','numeric','min:0'],'formato_empaque_id'=>['nullable','exists:formatos_empaque,id'],'codigo_barras'=>['nullable','string','max:100','unique:insumo_presentaciones,codigo_barras'.($presentacion?->id?','.$presentacion->id:'')],'imagen'=>['nullable','image','max:2048'],'retornable'=>['nullable','boolean'],'predeterminada'=>['nullable','boolean'],'activa'=>['nullable','boolean']]);
         $data['tipo_envase']=!empty($data['formato_empaque_id'])?FormatoEmpaque::find($data['formato_empaque_id'])?->nombre:null;
         $data['stock_minimo']=$data['stock_minimo']??0;$data['retornable']=$request->boolean('retornable');$data['predeterminada']=$request->boolean('predeterminada');$data['activa']=$request->boolean('activa');return $data;
     }

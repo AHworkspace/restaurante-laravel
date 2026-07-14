@@ -69,7 +69,7 @@
                                                      data-pendiente="{{ number_format($consumidor->saldoPendiente(), 2) }}"
                                                      onclick="seleccionarConsumidorDesdeLista({{ $consumidor->id }}, '{{ $consumidor->nombre_completo }}', '{{ $consumidor->ci }}', '{{ $consumidor->grado->nombre ?? 'N/A' }}', '{{ $consumidor->fuerza->nombre ?? 'N/A' }}', '{{ number_format($consumidor->saldoPendiente(), 2) }}')">
                                                     <div class="consumidor-name">{{ $consumidor->nombre_completo }}</div>
-                                                    <div class="consumidor-meta">CI: {{ $consumidor->ci }} | {{ $consumidor->grado->nombre ?? 'N/A' }} | {{ $consumidor->fuerza->nombre ?? 'N/A' }}</div>
+                                                    <div class="consumidor-meta">CI: {{ $consumidor->ci }} | {{ $consumidor->grado->nombre ?? 'N/A' }} | Segmento: {{ $consumidor->fuerza->nombre ?? 'N/A' }}</div>
                                                     <div class="consumidor-pendiente">Pendiente: Bs. {{ number_format($consumidor->saldoPendiente(), 2) }}</div>
                                                 </div>
                                             @endforeach
@@ -514,7 +514,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 item.href = '#';
                                 item.className = 'list-group-item list-group-item-action';
                                 item.innerHTML = '<strong>' + consumidor.nombre_completo + '</strong><br>' +
-                                                '<small>CI: ' + consumidor.ci + ' | ' + consumidor.grado + ' | ' + consumidor.fuerza + '</small><br>' +
+                                                '<small>CI: ' + consumidor.ci + ' | ' + consumidor.grado + ' | Segmento: ' + consumidor.fuerza + '</small><br>' +
                                                 '<small class="text-danger">Pendiente: Bs. ' + consumidor.pendiente + '</small>';
                                 item.addEventListener('click', function(e) {
                                     e.preventDefault();
@@ -572,7 +572,7 @@ document.addEventListener('DOMContentLoaded', function() {
         consumidorIdSelected.value = id;
         buscarConsumidor.value = nombre;
         document.getElementById('consumidor_nombre').textContent = nombre;
-        document.getElementById('consumidor_detalles').textContent = 'CI: ' + ci + ' | ' + grado + ' | ' + fuerza;
+        document.getElementById('consumidor_detalles').textContent = 'CI: ' + ci + ' | ' + grado + ' | Segmento: ' + fuerza;
         document.getElementById('consumidor_pendiente').textContent = pendiente;
 
         // Ocultar resultados de búsqueda

@@ -30,7 +30,7 @@ class MovimientoInventarioController extends Controller
             'insumo.unidad_medida',
             'unidad_medida',
             'compra.proveedorRel',
-            'compraLinea.marca','compraLinea.unidadInventario','presentacion','unidadInventario',
+            'compraLinea.marca','compraLinea.unidadInventario','compraLinea.unidadMedida','compraLinea.formatoEmpaque','compraLinea.presentacion','compraLinea.insumo.unidad_medida','presentacion','unidadInventario',
             'receta',
         ]);
         if ($request->filled('fecha_inicio')) {
@@ -53,10 +53,10 @@ class MovimientoInventarioController extends Controller
     public function create()
     {
         $insumos = Insumo::with('unidad_medida')->get();
-        $unidades = UnidadMedida::all();
+        $unidades = UnidadMedida::reales();
         $recetas = Receta::all();
         $proveedores = Proveedor::all();
-        $presentaciones=\App\Models\InsumoPresentacion::with('insumo')->where('activa',true)->orderBy('nombre')->get();
+        $presentaciones=\App\Models\InsumoPresentacion::with(['insumo','movimientos','unidadStockRelacion'])->where('activa',true)->orderBy('nombre')->get();
         $lineasCompra = CompraLinea::with(['compra.proveedorRel', 'insumo.unidad_medida', 'presentacion', 'formatoEmpaque', 'marca', 'unidadMedida', 'unidadPrecio', 'unidadContenido', 'unidadInventario'])
             ->whereColumn('cantidad_recibida_base', '<', 'cantidad_pedida_base')
             ->whereHas('compra', fn ($q) => $q->whereNotIn('estado', ['anulada', 'recibida']))
@@ -75,18 +75,22 @@ class MovimientoInventarioController extends Controller
             'cantidad_suelta' => 'nullable|numeric|min:0',
             'tipo' => 'required|in:entrada,salida',
             'motivo' => 'required|string|max:100',
-            'insumo_id' => 'required|exists:insumos,id',
+            'insumo_id' => 'nullable|exists:insumos,id',
             'unidad_medida_id' => 'nullable|exists:unidad_medidas,id',
             'costo_compra' => 'nullable|numeric|min:0',
             'proveedor_id' => 'nullable|exists:proveedores,id',
             'detalle_compra' => 'nullable|string|max:255',
             'receta_id' => 'nullable|exists:recetas,id',
             'fecha' => 'required|date',
-            'compra_linea_id' => 'nullable|exists:compra_lineas,id',
-            'presentacion_id' => 'nullable|exists:insumo_presentaciones,id',
+            'compra_linea_id' => 'required_if:tipo,entrada|nullable|exists:compra_lineas,id',
+            'presentacion_id' => 'required_if:tipo,salida|nullable|exists:insumo_presentaciones,id',
         ]);
 
         $lineaCompra = null;
+        if ($request->tipo === 'entrada' && ! $request->filled('compra_linea_id')) {
+            return back()->withErrors(['compra_linea_id' => 'Para registrar una entrada debes seleccionar una línea de compra pendiente.'])->withInput();
+        }
+
         if ($request->filled('compra_linea_id')) {
             if ($request->tipo !== 'entrada') return back()->withErrors(['compra_linea_id' => 'Una línea de compra solo puede recibirse como entrada.'])->withInput();
             $lineaCompra = CompraLinea::with(['compra', 'insumo', 'marca'])->findOrFail($request->compra_linea_id);
@@ -95,6 +99,9 @@ class MovimientoInventarioController extends Controller
                 'unidad_medida_id' => $lineaCompra->unidad_medida_id ?: $lineaCompra->insumo->unidad_medida_id,
                 'presentacion_id' => $lineaCompra->presentacion_id,
             ]);
+        } elseif ($request->tipo === 'salida' && $request->filled('presentacion_id')) {
+            $presentacionSalida = \App\Models\InsumoPresentacion::findOrFail($request->presentacion_id);
+            $request->merge(['insumo_id' => $presentacionSalida->insumo_id]);
         }
 
         // Obtener insumo y su unidad base
@@ -103,6 +110,7 @@ class MovimientoInventarioController extends Controller
         $presentacionId=$lineaCompra?->presentacion_id ?: ($request->presentacion_id ?: $insumo->presentacionPredeterminada()->value('id'));
         $presentacionSeleccionada=$presentacionId?\App\Models\InsumoPresentacion::with('unidadStockRelacion')->find($presentacionId):null;
         if(!$lineaCompra&&$presentacionSeleccionada?->unidadStockRelacion)$unidadBase=$presentacionSeleccionada->unidadStockRelacion;
+        if($request->tipo==='salida'&&!$presentacionSeleccionada)return back()->withErrors(['presentacion_id'=>'Para registrar una salida debes seleccionar la presentación del insumo.'])->withInput();
         if($presentacionId&&\App\Models\InsumoPresentacion::whereKey($presentacionId)->where('insumo_id','!=',$insumo->id)->exists())return back()->withErrors(['presentacion_id'=>'La presentación no pertenece al insumo seleccionado.'])->withInput();
 
         // Determinar unidad del movimiento (si no se especifica, usar la unidad base del insumo)
@@ -137,7 +145,7 @@ class MovimientoInventarioController extends Controller
 
         // Validación para salidas: no permitir más que el stock disponible (usar cantidad convertida)
         if ($request->tipo === 'salida') {
-            $stockDisponible = $insumo->getCantidadTotal();
+            $stockDisponible = $presentacionSeleccionada->stockDisponible();
             if ($cantidadConvertida > $stockDisponible) {
                 return back()->withErrors([
                     'cantidad' => 'No hay suficiente stock disponible para realizar esta salida. Stock actual: ' .
@@ -285,7 +293,7 @@ class MovimientoInventarioController extends Controller
             'fecha_fin' => 'nullable|date',
         ]);
 
-        $movimientos = MovimientoInventario::with(['insumo.unidad_medida', 'unidad_medida', 'compra.proveedorRel'])
+        $movimientos = MovimientoInventario::with(['insumo.unidad_medida', 'unidad_medida', 'compra.proveedorRel', 'presentacion', 'unidadInventario'])
             ->whereIn('id', $data['movimientos'])
             ->get();
 
@@ -298,7 +306,9 @@ class MovimientoInventarioController extends Controller
 
         $detalles = $movimientos->map(function ($movimiento) {
             $unidad = $movimiento->unidad_medida ?? $movimiento->insumo->unidad_medida;
-            $costo = $movimiento->compra->costo_total ?? 0;
+            $costo = $movimiento->tipo === 'entrada'
+                ? ($movimiento->compra->costo_total ?? 0)
+                : ((float) ($movimiento->presentacion?->costo_estandar ?? 0) * (float) ($movimiento->cantidad_convertida ?? $movimiento->cantidad ?? 0));
             return [
                 'id' => $movimiento->id,
                 'insumo' => $movimiento->insumo->nombre,
@@ -309,8 +319,8 @@ class MovimientoInventarioController extends Controller
                 'fecha' => $movimiento->created_at->format('Y-m-d'),
                 'motivo' => $movimiento->motivo,
                 'costo' => (float) $costo,
-                'proveedor' => optional($movimiento->compra->proveedorRel)->nombre ?? ($movimiento->compra->proveedor ?? ''),
-                'detalle' => $movimiento->compra->descripcion,
+                'proveedor' => optional($movimiento->compra?->proveedorRel)->nombre ?? ($movimiento->compra?->proveedor ?? ''),
+                'detalle' => $movimiento->compra?->descripcion,
             ];
         });
 
@@ -319,7 +329,7 @@ class MovimientoInventarioController extends Controller
         $fechaHasta = $data['fecha_fin'] ?? optional($movimientos->max('created_at'))->toDateString();
 
         $reporte = ReporteMovimiento::create([
-            'nombre' => $data['nombre'] ?: 'Movimientos seleccionados ' . now()->format('d/m/Y H:i'),
+            'nombre' => $data['nombre'] ?: 'Movimientos de ' . ($movimientos->pluck('tipo')->unique()->implode(', ') ?: 'inventario') . ' ' . now()->format('d/m/Y H:i'),
             'fecha_desde' => $fechaDesde,
             'fecha_hasta' => $fechaHasta,
             'total_movimientos' => $movimientos->count(),
@@ -353,9 +363,10 @@ class MovimientoInventarioController extends Controller
      */
     public function edit(MovimientoInventario $movimiento)
     {
+        $movimiento->load(['compraLinea.formatoEmpaque','compraLinea.unidadMedida','compraLinea.unidadInventario','compraLinea.presentacion','compraLinea.insumo.unidad_medida']);
         $insumos = \App\Models\Insumo::with('unidad_medida')->get();
-        $presentaciones=\App\Models\InsumoPresentacion::with('insumo')->where('activa',true)->orderBy('nombre')->get();
-        $unidades = UnidadMedida::all();
+        $presentaciones=\App\Models\InsumoPresentacion::with(['insumo','movimientos','unidadStockRelacion'])->where('activa',true)->orderBy('nombre')->get();
+        $unidades = UnidadMedida::reales();
         $recetas = Receta::all();
         $proveedores = Proveedor::all();
         return view('movimientos.edit', compact('movimiento', 'insumos', 'presentaciones', 'unidades', 'recetas', 'proveedores'));
@@ -414,6 +425,10 @@ class MovimientoInventarioController extends Controller
         // Obtener insumo y su unidad base
         $insumo = Insumo::with('unidad_medida')->find($request->insumo_id);
         $unidadBase = $insumo->unidad_medida;
+        if($request->tipo==='entrada'&&!$movimiento->compra_linea_id)return back()->withErrors(['compra_linea_id'=>'Una entrada debe estar asociada a una línea de compra.'])->withInput();
+        $presentacionSeleccionada=$request->presentacion_id?\App\Models\InsumoPresentacion::with('unidadStockRelacion')->find($request->presentacion_id):null;
+        if($request->tipo==='salida'&&!$presentacionSeleccionada)return back()->withErrors(['presentacion_id'=>'Para registrar una salida debes seleccionar la presentación del insumo.'])->withInput();
+        if($presentacionSeleccionada?->unidadStockRelacion)$unidadBase=$presentacionSeleccionada->unidadStockRelacion;
         if($request->presentacion_id&&\App\Models\InsumoPresentacion::whereKey($request->presentacion_id)->where('insumo_id','!=',$insumo->id)->exists())return back()->withErrors(['presentacion_id'=>'La presentación no pertenece al insumo seleccionado.'])->withInput();
 
         // Determinar unidad del movimiento (si no se especifica, usar la unidad base del insumo)
@@ -440,7 +455,7 @@ class MovimientoInventarioController extends Controller
         // Validación para salidas: no permitir más que el stock disponible
         if ($request->tipo === 'salida') {
             // Calcular stock disponible excluyendo el movimiento actual
-            $stockDisponible = $insumo->getCantidadTotal();
+            $stockDisponible = $presentacionSeleccionada->stockDisponible();
             // Si estamos editando, agregar la cantidad convertida del movimiento actual
             if ($movimiento->cantidad_convertida) {
                 $stockDisponible += $movimiento->cantidad_convertida;

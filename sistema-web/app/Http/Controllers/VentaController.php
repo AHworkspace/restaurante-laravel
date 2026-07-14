@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Venta;
 use App\Models\Receta;
 use Illuminate\Http\Request;
-use App\Models\MovimientoInventario;
 use App\Helpers\HistorialHelper;
 
 class VentaController extends Controller
@@ -61,19 +60,6 @@ class VentaController extends Controller
         $venta->created_at = $request->fecha;
         $venta->save();
         HistorialHelper::registrar('Registró venta', 'Receta ID: ' . $venta->receta_id . ', Cantidad: ' . $venta->cantidad . ', Total: ' . $venta->total, 'Ventas');
-
-        $receta = Receta::find($request->receta_id);
-        $insumosGastados = $receta->insumosGastados($request->cantidad);
-
-        foreach ($insumosGastados as $insumo_id => $cantidad) {
-            $movimiento = new MovimientoInventario();
-            $movimiento->tipo = 'salida';
-            $movimiento->cantidad = $cantidad;
-            $movimiento->insumo_id = $insumo_id;
-            $movimiento->motivo = 'Venta de ' . $receta->nombre;
-            $movimiento->venta_id = $venta->id;
-            $movimiento->save();
-        }
 
         return redirect()->route('ventas.index')->with('success', 'Venta registrada correctamente');
     }

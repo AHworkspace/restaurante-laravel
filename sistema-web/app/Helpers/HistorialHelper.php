@@ -4,6 +4,7 @@ namespace App\Helpers;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Traits\HasRoles;
 
 class HistorialHelper
@@ -22,18 +23,22 @@ class HistorialHelper
         $nombre = $user
             ? trim(collect([$user->nombre ?? $user->name ?? null, $user->apellido_paterno ?? null])->filter()->implode(' '))
             : 'Sistema';
-        DB::table('historial')->insert([
-            'user_id' => $user?->id,
-            'usuario' => $nombre ?: ($user?->email ?? 'Sistema'),
-            'rol' => $rol,
-            'fecha' => now()->toDateString(),
-            'hora' => now()->toTimeString(),
-            'seccion' => $seccion ?: 'Sistema',
-            'accion' => trim((string) $accion),
-            'detalles' => $detalles ? trim((string) $detalles) : 'Sin detalles adicionales.',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        try {
+            DB::table('historial')->insert([
+                'user_id' => $user?->id,
+                'usuario' => $nombre ?: ($user?->email ?? 'Sistema'),
+                'rol' => $rol,
+                'fecha' => now()->toDateString(),
+                'hora' => now()->toTimeString(),
+                'seccion' => $seccion ?: 'Sistema',
+                'accion' => trim((string) $accion),
+                'detalles' => $detalles ? trim((string) $detalles) : 'Sin detalles adicionales.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo registrar historial: ' . $e->getMessage());
+        }
     }
 
     public static function registrarPrediccion($usuario, $accion, $detalles = null, $seccion = 'Predicciones')

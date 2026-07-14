@@ -3,6 +3,7 @@
 use Livewire\Volt\Component;
 use App\Models\ReportePersonalizado;
 use App\Models\ReporteMovimiento;
+use App\Models\ReporteGuardado;
 
 new class extends Component {
     public $nombreReporte = '';
@@ -66,6 +67,7 @@ new class extends Component {
     {
         $ventas = ReportePersonalizado::orderBy('created_at', 'desc')
             ->get()
+            ->toBase()
             ->map(function ($reporte) {
                 return [
                     'id' => $reporte->id,
@@ -80,6 +82,7 @@ new class extends Component {
 
         $compras = ReporteMovimiento::orderBy('created_at', 'desc')
             ->get()
+            ->toBase()
             ->map(function ($reporte) {
                 return [
                     'id' => $reporte->id,
@@ -88,13 +91,31 @@ new class extends Component {
                     'fecha_hasta' => $reporte->fecha_hasta,
                     'descripcion' => $reporte->datos ? 'Movimientos seleccionados' : null,
                     'created_at' => $reporte->created_at,
-                    'tipo' => 'compras',
+                    'tipo' => 'movimientos',
+                    'sector' => 'movimientos',
                     'total_movimientos' => $reporte->total_movimientos,
                     'total_costo' => $reporte->total_costo,
                 ];
             });
 
-        $this->reportesGuardados = $ventas->merge($compras)
+        $generales = ReporteGuardado::orderBy('created_at', 'desc')
+            ->get()
+            ->toBase()
+            ->map(function ($reporte) {
+                return [
+                    'id' => $reporte->id,
+                    'nombre' => $reporte->nombre,
+                    'fecha_desde' => $reporte->fecha_desde,
+                    'fecha_hasta' => $reporte->fecha_hasta,
+                    'descripcion' => 'Registros: ' . $reporte->total_registros . ' · Total: Bs. ' . number_format((float) $reporte->total_monto, 2),
+                    'created_at' => $reporte->created_at,
+                    'tipo' => 'guardado',
+                    'sector' => $reporte->sector,
+                    'subtipo' => $reporte->subtipo,
+                ];
+            });
+
+        $this->reportesGuardados = $ventas->merge($compras)->merge($generales)
             ->sortByDesc('created_at')
             ->values()
             ->toArray();
@@ -244,10 +265,21 @@ new class extends Component {
                     @if (count($reportesGuardados) === 0)
                         <p class="text-center text-muted">No tienes reportes guardados aún.</p>
                     @else
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                            <div class="text-muted small">Selecciona dos o mas reportes de sector para combinarlos en uno solo.</div>
+                            <div class="d-flex flex-wrap gap-2">
+                                <input type="text" class="form-control form-control-sm" id="combine-report-name" style="min-width:260px" placeholder="Nombre del reporte combinado">
+                                <button type="button" class="btn btn-sm btn-primary" id="combine-reports-btn" data-url="{{ route('reportes.guardados.combinar') }}">
+                                    Combinar seleccionados
+                                </button>
+                            </div>
+                            <small class="w-100" id="combine-report-message"></small>
+                        </div>
                         <div class="table-responsive">
                             <table class="table table-striped table-hover">
                                 <thead>
                                     <tr>
+                                        <th></th>
                                         <th>ID</th>
                                         <th>Nombre</th>
                                         <th>Período</th>
@@ -260,13 +292,20 @@ new class extends Component {
                                 <tbody>
                                     @foreach ($reportesGuardados as $reporte)
                                         <tr>
+                                            <td>
+                                                @if ($reporte['tipo'] === 'guardado')
+                                                    <input type="checkbox" class="form-check-input report-combine-checkbox" value="guardado:{{ $reporte['id'] }}">
+                                                @elseif ($reporte['tipo'] === 'movimientos')
+                                                    <input type="checkbox" class="form-check-input report-combine-checkbox" value="movimiento:{{ $reporte['id'] }}">
+                                                @endif
+                                            </td>
                                             <td>{{ $reporte['id'] }}</td>
                                             <td><strong>{{ $reporte['nombre'] }}</strong></td>
                                             <td>{{ $reporte['fecha_desde'] }} a {{ $reporte['fecha_hasta'] }}</td>
                                             <td>{{ $reporte['descripcion'] ?? 'N/A' }}</td>
                                             <td>
-                                                <span class="badge {{ $reporte['tipo'] === 'ventas' ? 'bg-primary' : 'bg-secondary' }}">
-                                                    {{ strtoupper($reporte['tipo']) }}
+                                                <span class="badge {{ $reporte['tipo'] === 'ventas' ? 'bg-primary' : ($reporte['tipo'] === 'guardado' ? 'bg-success' : 'bg-secondary') }}">
+                                                    {{ strtoupper($reporte['sector'] ?? $reporte['tipo']) }}{{ !empty($reporte['subtipo']) ? ' - '.strtoupper($reporte['subtipo']) : '' }}
                                                 </span>
                                             </td>
                                             <td>{{ \Carbon\Carbon::parse($reporte['created_at'])->format('d/m/Y') }}</td>
@@ -293,7 +332,7 @@ new class extends Component {
                                                             title="Eliminar">
                                                         <i class="lni lni-trash"></i>
                                                     </button>
-                                                @else
+                                                @elseif ($reporte['tipo'] === 'movimientos')
                                                     <button type="button"
                                                             class="btn btn-sm btn-info btn-ver-mov"
                                                             data-url="{{ route('reportes.movimientos.ver', $reporte['id']) }}"
@@ -315,6 +354,24 @@ new class extends Component {
                                                     <button type="button"
                                                             class="btn btn-sm btn-danger btn-delete-mov"
                                                             data-url="{{ route('reportes.movimientos.eliminar', $reporte['id']) }}"
+                                                            title="Eliminar">
+                                                        <i class="lni lni-trash"></i>
+                                                    </button>
+                                                @else
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-info btn-ver-guardado"
+                                                            data-url="{{ route('reportes.guardados.ver', $reporte['id']) }}"
+                                                            title="Ver Detalles">
+                                                        <i class="lni lni-eye"></i>
+                                                    </button>
+                                                    <a href="{{ route('reportes.guardados.pdf', $reporte['id']) }}"
+                                                       class="btn btn-sm btn-danger"
+                                                       title="Descargar PDF">
+                                                        <i class="lni lni-download"></i>
+                                                    </a>
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-danger btn-delete-guardado"
+                                                            data-url="{{ route('reportes.guardados.eliminar', $reporte['id']) }}"
                                                             title="Eliminar">
                                                         <i class="lni lni-trash"></i>
                                                     </button>
@@ -451,4 +508,3 @@ new class extends Component {
         });
     </script>
 </div>
-

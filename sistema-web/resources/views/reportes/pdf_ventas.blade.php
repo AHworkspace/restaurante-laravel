@@ -66,7 +66,7 @@
             @endphp
             <div style="margin: 12px 0; page-break-inside: avoid;">
                 <div style="margin-bottom: 3px;">
-                    <strong style="color: #333;">{{ $index + 1 }}. {{ $item->receta->nombre }}</strong>
+                    <strong style="color: #333;">{{ $index + 1 }}. {{ $item->producto_nombre }}</strong>
                     <span style="float: right; color: #7A5C58; font-weight: bold;">Bs. {{ number_format($item->ingresos, 2) }}</span>
                 </div>
                 <div style="background: #e0e0e0; height: 30px; border-radius: 4px; overflow: hidden; margin: 3px 0;">
@@ -131,7 +131,7 @@
                 @forelse($ventas as $venta)
                     <tr>
                         <td>{{ $venta->created_at->format('d/m/Y') }}</td>
-                        <td>{{ $venta->receta->nombre }}</td>
+                        <td>{{ $venta->producto_nombre }}</td>
                         <td>{{ $venta->cantidad }}</td>
                         <td>Bs. {{ number_format($venta->precio, 2) }}</td>
                         <td><strong>Bs. {{ number_format($venta->total, 2) }}</strong></td>

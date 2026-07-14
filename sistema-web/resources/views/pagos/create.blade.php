@@ -46,7 +46,7 @@
                                         <small class="text-muted">
                                             CI: {{ $pendiente['consumidor']->ci ?? 'N/A' }}
                                             | {{ $pendiente['consumidor']->grado->nombre ?? 'N/A' }}
-                                            | {{ $pendiente['consumidor']->fuerza->nombre ?? 'N/A' }}
+                                            | Segmento: {{ $pendiente['consumidor']->fuerza->nombre ?? 'N/A' }}
                                         </small>
                                     </td>
                                     <td>{{ $pendiente['cantidad_consumos'] }}</td>
@@ -300,7 +300,7 @@
             consumidorIdSelected.value = consumidor.id;
             buscarConsumidor.value = consumidor.nombre_completo;
             document.getElementById('consumidor_nombre').textContent = consumidor.nombre_completo;
-            document.getElementById('consumidor_detalles').textContent = 'CI: ' + consumidor.ci + ' | ' + consumidor.grado + ' | ' + consumidor.fuerza;
+            document.getElementById('consumidor_detalles').textContent = 'CI: ' + consumidor.ci + ' | ' + consumidor.grado + ' | Segmento: ' + consumidor.fuerza;
             document.getElementById('consumidor_pendiente').textContent = consumidor.pendiente;
 
             if (consumidor.adelantado !== undefined) {

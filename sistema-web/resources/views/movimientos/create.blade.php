@@ -21,9 +21,9 @@
                     <form action="{{ route('movimientos.store') }}" method="POST">
                         @csrf
                         <div class="mb-3" id="compra-linea-group">
-                            <label for="compra_linea_id" class="form-label">Línea de compra a recibir (opcional)</label>
+                            <label for="compra_linea_id" class="form-label">Linea de compra a recibir</label>
                             <select name="compra_linea_id" id="compra_linea_id" class="form-control">
-                                <option value="">Entrada sin compra asociada</option>
+                                <option value="">Selecciona una linea de compra pendiente</option>
                                 @foreach($lineasCompra as $linea)
                                     <option value="{{ $linea->id }}"
                                             data-insumo="{{ $linea->insumo_id }}"
@@ -40,41 +40,66 @@
                                             data-proveedor="{{ $linea->compra?->proveedorRel?->nombre ?: $linea->compra?->proveedor }}"
                                             data-proveedor-id="{{ $linea->compra?->proveedor_id }}"
                                             data-marca="{{ $linea->marca?->nombre ?: 'Sin especificar' }}"
+                                            data-pendiente-texto="{{ $linea->faltanteTexto() }}"
                                             @selected(old('compra_linea_id', request('compra_linea_id')) == $linea->id)>
                                         Compra {{ $linea->compra?->numero_documento ?: '#'.$linea->compra_id }} - {{ $linea->insumo?->nombre }} · {{ $linea->presentacion?->nombre }}@if($linea->formatoEmpaque) · {{ $linea->formatoEmpaque->nombre }}@endif @if($linea->marca)({{ $linea->marca->nombre }})@endif - Faltan {{ number_format($linea->cantidad_faltante, 2) }} {{ $linea->unidadMedida?->abreviatura }}
+                                        | Pendiente claro: {{ $linea->faltanteTexto() }}
                                     </option>
                                 @endforeach
                             </select>
-                            <small id="compra-linea-info" class="form-text text-muted">Selecciona una línea para registrar una recepción vinculada y controlar faltantes.</small>
+                            <small id="compra-linea-info" class="form-text text-muted">Las entradas solo se registran desde compras pendientes para controlar faltantes y costos.</small>
+                            <div id="compra-linea-resumen" class="alert alert-info mt-2 mb-0" style="display:none;"></div>
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-3" id="insumo-group">
                             <label for="insumo_id" class="form-label">Insumo</label>
-                            <select name="insumo_id" id="insumo_id" class="form-control" required>
+                            <select name="insumo_id" id="insumo_id" class="form-control">
                                 <option value="">Seleccione un insumo</option>
                                 @foreach($insumos as $insumo)
                                     <option value="{{ $insumo->id }}" {{ old('insumo_id') == $insumo->id ? 'selected' : '' }}>{{ $insumo->nombre }}</option>
                                 @endforeach
                             </select>
+                            <small class="form-text text-muted">Este campo se llena automaticamente al elegir una linea o una presentacion.</small>
+                        </div>
+                        <div class="mb-3" id="presentacion-group">
+                            <label for="presentacion_id" class="form-label">Presentacion a descontar</label>
+                            <select name="presentacion_id" id="presentacion_id" class="form-control">
+                                <option value="">Selecciona una presentacion</option>
+                                @foreach($presentaciones->groupBy(fn($p) => $p->insumo?->nombre ?: 'Sin insumo') as $nombreInsumo => $grupo)
+                                    <optgroup label="{{ $nombreInsumo }}">
+                                        @foreach($grupo as $presentacion)
+                                            @php
+                                                $stockPresentacion = $presentacion->stockDisponible();
+                                            @endphp
+                                            <option value="{{ $presentacion->id }}"
+                                                    data-insumo="{{ $presentacion->insumo_id }}"
+                                                    data-stock="{{ $stockPresentacion }}">
+                                                {{ $presentacion->nombre }} - Stock: {{ number_format($stockPresentacion, 2) }} {{ $presentacion->unidadStock()?->abreviatura ?: '' }}
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
+                                @endforeach
+                            </select>
+                            <small id="presentacion-ayuda" class="form-text text-muted">En salidas solo se muestran presentaciones con stock disponible.</small>
                         </div>
                         <div class="mb-3">
-                            <label for="cantidad" class="form-label">Cantidad</label>
+                            <label for="cantidad" class="form-label">Cantidad que se recibe</label>
                             <input type="number" name="cantidad" id="cantidad" class="form-control" min="0" step="0.01" required value="{{ old('cantidad') }}">
+                            <small id="cantidad-ayuda" class="form-text text-muted">En entradas, esta cantidad corresponde al formato de la compra seleccionada. En salidas, corresponde a la unidad de medida elegida.</small>
                         </div>
                         <div class="mb-3 d-none" id="cantidad-suelta-group">
                             <label for="cantidad_suelta" class="form-label">Unidades interiores sueltas</label>
                             <input type="number" name="cantidad_suelta" id="cantidad_suelta" class="form-control" min="0" step="0.0001" value="{{ old('cantidad_suelta',0) }}">
                             <small class="form-text text-muted">Bolsas, botellas, latas u otras unidades recibidas fuera de un empaque completo.</small>
                         </div>
-                        <div class="mb-3"><label for="presentacion_id" class="form-label">Presentación</label><select name="presentacion_id" id="presentacion_id" class="form-control"><option value="">Selecciona el insumo</option>@foreach($presentaciones as $presentacion)<option value="{{ $presentacion->id }}" data-insumo="{{ $presentacion->insumo_id }}">{{ $presentacion->insumo->nombre }} · {{ $presentacion->nombre }}</option>@endforeach</select></div>
-                        <div class="mb-3">
-                            <label for="unidad_medida_id" class="form-label">Unidad de Medida</label>
+                        <div class="mb-3" id="unidad-group">
+                            <label for="unidad_medida_id" class="form-label">Unidad de medida del movimiento</label>
                             <select name="unidad_medida_id" id="unidad_medida_id" class="form-control">
                                 <option value="">Seleccione unidad (por defecto: unidad del insumo)</option>
                                 @foreach($unidades as $unidad)
                                     <option value="{{ $unidad->id }}" {{ old('unidad_medida_id') == $unidad->id ? 'selected' : '' }}>{{ $unidad->nombre }} ({{ $unidad->abreviatura }})</option>
                                 @endforeach
                             </select>
-                            <small id="unidad-base-info" class="form-text text-muted"></small>
+                            <small id="unidad-base-info" class="form-text text-muted">Solo medidas reales: kg, litro, unidad, arroba, etc. El empaque se maneja desde la compra.</small>
                             <small id="conversion-info" class="form-text text-info" style="display: none;"></small>
                         </div>
                         <div class="mb-3">
@@ -166,24 +191,48 @@ document.addEventListener('DOMContentLoaded', function() {
     const insumoSelect = document.getElementById('insumo_id');
     const unidadSelect = document.getElementById('unidad_medida_id');
     const cantidadInput = document.getElementById('cantidad');
+    const cantidadAyuda = document.getElementById('cantidad-ayuda');
     const cantidadSueltaInput = document.getElementById('cantidad_suelta');
     const cantidadSueltaGroup = document.getElementById('cantidad-suelta-group');
     const presentacionSelect = document.getElementById('presentacion_id');
+    const presentacionAyuda = document.getElementById('presentacion-ayuda');
     const unidadBaseInfo = document.getElementById('unidad-base-info');
     const conversionInfo = document.getElementById('conversion-info');
     const tipoSelect = document.getElementById('tipo');
     const compraLineaSelect = document.getElementById('compra_linea_id');
     const compraLineaGroup = document.getElementById('compra-linea-group');
     const compraLineaInfo = document.getElementById('compra-linea-info');
+    const compraLineaResumen = document.getElementById('compra-linea-resumen');
     const entradaFields = document.getElementById('entrada-fields');
     const salidaFields = document.getElementById('salida-fields');
+    const insumoGroup = document.getElementById('insumo-group');
+    const presentacionGroup = document.getElementById('presentacion-group');
+    const unidadGroup = document.getElementById('unidad-group');
     const costoInput = document.getElementById('costo_compra');
     const proveedorSelect = document.getElementById('proveedor_id');
     const costoSugerido = document.getElementById('costo-sugerido');
+    const detalleCompraInput = document.getElementById('detalle_compra');
+    const motivoInput = document.getElementById('motivo');
+    const fechaInput = document.getElementById('fecha');
 
     const insumosData = @json($insumosJson);
     const presentacionesData = @json($presentacionesJson);
     const conversionesData = @json($conversionesJson);
+
+    function bloquearCamposEntrada(bloquear) {
+        [
+            insumoSelect,
+            presentacionSelect,
+            unidadSelect,
+            cantidadInput,
+            cantidadSueltaInput,
+            costoInput,
+            proveedorSelect,
+            detalleCompraInput,
+            motivoInput,
+            fechaInput,
+        ].filter(Boolean).forEach(campo => campo.disabled = bloquear);
+    }
 
     // Función para obtener factor de conversión (puede ser directa o indirecta)
     // Evita recursión infinita usando un set de unidades visitadas
@@ -316,40 +365,93 @@ document.addEventListener('DOMContentLoaded', function() {
             entradaFields.style.display = 'block';
             salidaFields.style.display = 'none';
             compraLineaGroup.style.display = 'block';
+            insumoGroup.style.display = 'block';
+            presentacionGroup.style.display = 'block';
+            unidadGroup.style.display = 'block';
+            compraLineaSelect.required = true;
+            presentacionSelect.required = false;
+            insumoSelect.required = false;
+            filtrarPresentacionesPorStock(false);
+            bloquearCamposEntrada(!compraLineaSelect.value);
             actualizarCostoSugerido();
         } else {
             entradaFields.style.display = 'none';
             salidaFields.style.display = 'block';
             compraLineaGroup.style.display = 'none';
+            insumoGroup.style.display = 'none';
+            presentacionGroup.style.display = 'block';
+            unidadGroup.style.display = 'block';
+            compraLineaSelect.required = false;
+            presentacionSelect.required = true;
+            insumoSelect.required = false;
             compraLineaSelect.value = '';
+            filtrarPresentacionesPorStock(true);
+            cantidadInput.removeAttribute('max');
+            cantidadSueltaGroup.classList.add('d-none');
+            cantidadSueltaInput.value = 0;
+            cantidadAyuda.textContent = 'En entradas, esta cantidad corresponde al formato de la compra seleccionada. En salidas, corresponde a la unidad de medida elegida.';
+            bloquearCamposEntrada(false);
         }
+    }
+
+    function filtrarPresentacionesPorStock(soloConStock) {
+        let primeraVisible = '';
+        presentacionSelect.querySelectorAll('option[data-insumo]').forEach(option => {
+            const stock = Number(option.dataset.stock || 0);
+            option.hidden = soloConStock && stock <= 0;
+            if (!option.hidden && !primeraVisible) primeraVisible = option.value;
+        });
+
+        presentacionSelect.querySelectorAll('optgroup').forEach(group => {
+            const visibles = Array.from(group.querySelectorAll('option[data-insumo]')).some(option => !option.hidden);
+            group.hidden = soloConStock && !visibles;
+        });
+
+        if (soloConStock && presentacionSelect.value && presentacionSelect.selectedOptions[0]?.hidden) {
+            presentacionSelect.value = '';
+        }
+
+        presentacionAyuda.textContent = soloConStock
+            ? 'Solo aparecen presentaciones con stock mayor a 0 para poder descontarlas.'
+            : 'En entradas la presentacion se llena desde la linea de compra seleccionada.';
     }
 
     function aplicarLineaCompra() {
         const option = compraLineaSelect.options[compraLineaSelect.selectedIndex];
         if (!compraLineaSelect.value || !option) {
             cantidadInput.removeAttribute('max');
+            cantidadInput.value = '';
             cantidadSueltaGroup.classList.add('d-none');
             cantidadSueltaInput.value = 0;
-            insumoSelect.disabled = false;
-            unidadSelect.disabled = false;
-            compraLineaInfo.textContent = 'Selecciona una línea para registrar una recepción vinculada y controlar faltantes.';
+            insumoSelect.value = '';
+            presentacionSelect.value = '';
+            unidadSelect.value = '';
+            costoInput.value = '';
+            proveedorSelect.value = '';
+            if (detalleCompraInput) detalleCompraInput.value = '';
+            if (motivoInput) motivoInput.value = '';
+            bloquearCamposEntrada(true);
+            compraLineaInfo.textContent = 'Las entradas solo se registran desde compras pendientes para controlar faltantes y costos.';
+            compraLineaResumen.style.display = 'none';
+            compraLineaResumen.textContent = '';
             return;
         }
+        bloquearCamposEntrada(false);
         insumoSelect.value = option.dataset.insumo;
         unidadSelect.value = option.dataset.unidad || '';
         presentacionSelect.value = option.dataset.presentacion || '';
         cantidadInput.max = option.dataset.faltanteEmpaques;
         cantidadInput.value = option.dataset.faltanteEmpaques;
+        cantidadAyuda.textContent = 'Cantidad en formato de compra: recibe ' + option.dataset.faltanteEmpaques + ' de la compra seleccionada. Equivalencia pendiente: ' + (option.dataset.pendienteTexto || 'sin detalle') + '.';
         cantidadSueltaInput.value = option.dataset.faltanteSueltas || 0;
         cantidadSueltaGroup.classList.toggle('d-none', option.dataset.esEmpaque !== '1');
         insumoSelect.disabled = false;
         unidadSelect.disabled = false;
         const entradaBase = Number(option.dataset.faltanteBase || 0);
-        const pendienteTexto = option.dataset.esEmpaque === '1'
-            ? option.dataset.faltanteEmpaques + ' empaques y ' + option.dataset.faltanteSueltas + ' ' + option.dataset.baseAbrev
-            : option.dataset.faltanteEmpaques + ' ' + (unidadSelect.selectedOptions[0]?.text || '');
-        compraLineaInfo.textContent = 'Proveedor: ' + option.dataset.proveedor + '. Marca/empresa: ' + option.dataset.marca + '. Pendiente: ' + pendienteTexto + '. Entrada total: ' + entradaBase.toFixed(4) + ' ' + option.dataset.baseAbrev + '. Costo original: Bs. ' + Number(option.dataset.costo || 0).toFixed(2) + '.';
+        const pendienteTexto = option.dataset.pendienteTexto || '';
+        compraLineaInfo.textContent = 'Proveedor: ' + option.dataset.proveedor + '. Marca/empresa: ' + option.dataset.marca + '. Pendiente por recibir: ' + pendienteTexto + '. Entrada total al inventario: ' + entradaBase.toFixed(4) + ' ' + option.dataset.baseAbrev + '. Costo original: Bs. ' + Number(option.dataset.costo || 0).toFixed(2) + '.';
+        compraLineaResumen.style.display = 'block';
+        compraLineaResumen.textContent = 'Lectura clara: en Cantidad estás registrando el formato de compra. Para esta línea se recibirá ' + pendienteTexto + ', y eso entrará al stock como ' + entradaBase.toFixed(4) + ' ' + option.dataset.baseAbrev + '.';
         document.getElementById('motivo').value = 'Recepción de compra';
         actualizarUnidadBase();
         costoInput.value = Number(option.dataset.costo || 0).toFixed(2);
@@ -368,6 +470,9 @@ document.addEventListener('DOMContentLoaded', function() {
             costoSugerido.textContent = 'Costo registrado originalmente en la línea de compra: Bs. ' + Number(option.dataset.costo || 0).toFixed(2) + '. Puedes modificarlo si corresponde.';
             return;
         }
+
+        costoSugerido.textContent = 'Selecciona una linea de compra pendiente para registrar la entrada.';
+        return;
 
         const insumoId = insumoSelect.value;
         const cantidad = parseFloat(cantidadInput.value);
@@ -455,20 +560,21 @@ document.addEventListener('DOMContentLoaded', function() {
     let ultimoCostoCalculado = '';
 
     insumoSelect.addEventListener('change', actualizarUnidadBase);
-    presentacionSelect.addEventListener('change', actualizarCostoSugerido);
+    presentacionSelect.addEventListener('change', function() {
+        const opcion = presentacionSelect.selectedOptions[0];
+        const presentacion = presentacionesData[presentacionSelect.value];
+        insumoSelect.value = opcion?.dataset.insumo || '';
+        if (presentacion?.unidad_stock_id) {
+            unidadSelect.value = presentacion.unidad_stock_id;
+        }
+        actualizarUnidadBase();
+        actualizarCostoSugerido();
+    });
     unidadSelect.addEventListener('change', actualizarConversion);
     cantidadInput.addEventListener('input', actualizarConversion);
     tipoSelect.addEventListener('change', actualizarTipoCampos);
     compraLineaSelect.addEventListener('change', aplicarLineaCompra);
 
-    // Mostrar campos de entrada si el tipo es "entrada" al cargar
-    if (tipoSelect.value === 'entrada') {
-        entradaFields.style.display = 'block';
-        salidaFields.style.display = 'none';
-    } else {
-        entradaFields.style.display = 'none';
-        salidaFields.style.display = 'block';
-    }
 
     // Detectar cuando el usuario edita manualmente el campo de costo
     costoInput.addEventListener('input', function() {
@@ -482,13 +588,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Asegurar que los campos se muestren correctamente antes de enviar el formulario
+    // Asegurar que el flujo coincida con el tipo de movimiento antes de enviar.
     const form = document.querySelector('form');
     if (form) {
         form.addEventListener('submit', function(e) {
-            // Asegurar que los campos de entrada estén visibles si el tipo es "entrada"
-            if (tipoSelect.value === 'entrada') {
-                entradaFields.style.display = 'block';
+            if (tipoSelect.value === 'entrada' && !compraLineaSelect.value) {
+                e.preventDefault();
+                compraLineaSelect.focus();
+                compraLineaInfo.textContent = 'Debes seleccionar una linea de compra pendiente para registrar una entrada.';
+                compraLineaInfo.classList.remove('text-muted');
+                compraLineaInfo.classList.add('text-danger');
+                return;
+            }
+            if (tipoSelect.value === 'salida' && !presentacionSelect.value) {
+                e.preventDefault();
+                presentacionSelect.focus();
             }
         });
     }

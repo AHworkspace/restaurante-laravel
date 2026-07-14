@@ -1825,19 +1825,6 @@ class EmailCommandParser
             'total' => $total,
         ]);
 
-        // Descontar insumos
-        $insumosGastados = $receta->insumosGastados($cantidad);
-
-        foreach ($insumosGastados as $insumo_id => $cantidadInsumo) {
-            MovimientoInventario::create([
-                'tipo' => 'salida',
-                'cantidad' => $cantidadInsumo,
-                'insumo_id' => $insumo_id,
-                'motivo' => 'Venta de ' . $receta->nombre,
-                'venta_id' => $venta->id,
-            ]);
-        }
-
         // Registrar en historial
         \App\Helpers\HistorialHelper::registrar(
             'Creó venta vía email',

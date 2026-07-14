@@ -21,7 +21,7 @@ class InsumoPresentacion extends Model
     public function unidadEmpaque(){return $this->belongsTo(UnidadMedida::class,'unidad_empaque_id');}
     public function formatoEmpaque(){return $this->belongsTo(FormatoEmpaque::class,'formato_empaque_id');}
     public function movimientos(){return $this->hasMany(MovimientoInventario::class,'presentacion_id');}
-    public function menusDia(){return $this->belongsToMany(MenuDia::class,'menus_dia_presentaciones','presentacion_id','menu_dia_id')->withPivot(['precio_venta','cantidad_inicial','cantidad','tipo_produccion_id'])->withTimestamps();}
+    public function menusDia(){return $this->belongsToMany(MenuDia::class,'menus_dia_presentaciones','presentacion_id','menu_dia_id')->withPivot(['precio_venta','cantidad_inicial','adiciones','cantidad','tipo_produccion_id'])->withTimestamps();}
     public function getNombreCompletoAttribute():string{return $this->insumo->nombre.' · '.$this->nombre;}
     public function stockDisponible():float{return $this->movimientos->sum(fn($m)=>($m->tipo==='entrada'?1:-1)*(float)($m->cantidad_convertida??$m->cantidad));}
     public function unidadStock():?UnidadMedida{return $this->unidadStockRelacion ?? $this->movimientos->first(fn($m)=>$m->unidadInventario)?->unidadInventario ?? $this->unidadContenido ?? $this->insumo->unidad_medida;}

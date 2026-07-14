@@ -142,12 +142,17 @@ Route::get('/reportes/parcial/mensual', [ReporteController::class, 'parcialMensu
 Route::get('/reportes/parcial/anual', [ReporteController::class, 'parcialAnual']);
 // CRUD de reportes personalizados (CU8)
 Route::post('/reportes/guardar', [ReporteController::class, 'guardarReporte'])->name('reportes.guardar');
+Route::post('/reportes/guardar-sector', [ReporteController::class, 'guardarSector'])->name('reportes.guardar-sector');
 Route::get('/reportes/personalizados', [ReporteController::class, 'listarPersonalizados'])->name('reportes.personalizados');
 Route::get('/reportes/personalizado/{id}', [ReporteController::class, 'verPersonalizado'])->name('reportes.personalizado');
 Route::put('/reportes/personalizado/{id}', [ReporteController::class, 'actualizarPersonalizado'])->name('reportes.actualizar');
 Route::delete('/reportes/personalizado/{id}', [ReporteController::class, 'eliminarPersonalizado'])->name('reportes.eliminar');
 Route::get('/reportes/generar-pdf/{id}', [ReporteController::class, 'generarPDF'])->name('reportes.generar-pdf');
 Route::get('/reportes/obtener-pdf/{id}', [ReporteController::class, 'obtenerPDF'])->name('reportes.obtener-pdf')->withoutMiddleware('auth');
+Route::post('/reportes/guardados/combinar', [ReporteController::class, 'combinarGuardados'])->name('reportes.guardados.combinar');
+Route::get('/reportes/guardados/{id}', [ReporteController::class, 'verGuardado'])->name('reportes.guardados.ver');
+Route::delete('/reportes/guardados/{id}', [ReporteController::class, 'eliminarGuardado'])->name('reportes.guardados.eliminar');
+Route::get('/reportes/guardados/{id}/pdf', [ReporteController::class, 'pdfGuardado'])->name('reportes.guardados.pdf');
 
 // Rutas de perfil
 Route::get('profile', [ProfileController::class, 'show'])->name('profile.show');

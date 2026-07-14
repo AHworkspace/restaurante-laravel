@@ -6,6 +6,7 @@ use App\Models\Receta;
 use App\Models\Insumo;
 use App\Models\InsumoPresentacion;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Helpers\HistorialHelper;
 
 class RecetaController extends Controller
@@ -25,7 +26,7 @@ class RecetaController extends Controller
         } else {
             $detalles = 'Se mostró la lista completa de recetas disponibles.';
         }
-        $recetas = $query->get();
+        $recetas = $query->with(['insumos.unidad_medida', 'insumos.presentaciones'])->get();
         \App\Helpers\HistorialHelper::registrar(
             $busqueda ? 'Buscó recetas' : 'Consultó listado de recetas',
             $detalles,
@@ -39,7 +40,7 @@ class RecetaController extends Controller
      */
     public function create()
     {
-        $presentaciones=InsumoPresentacion::with(['insumo','unidadStockRelacion'])->where('activa',true)->orderBy('nombre')->get();
+        $presentaciones=InsumoPresentacion::with(['insumo','unidadStockRelacion'])->where('activa',true)->get()->sortBy(fn($p)=>($p->insumo?->nombre ?? '').' '.$p->nombre)->values();
         return view('recetas.create', compact('presentaciones'));
     }
 
@@ -91,7 +92,7 @@ class RecetaController extends Controller
      */
     public function edit(Receta $receta)
     {
-        $presentaciones=InsumoPresentacion::with(['insumo','unidadStockRelacion'])->where('activa',true)->orderBy('nombre')->get();
+        $presentaciones=InsumoPresentacion::with(['insumo','unidadStockRelacion'])->where('activa',true)->get()->sortBy(fn($p)=>($p->insumo?->nombre ?? '').' '.$p->nombre)->values();
         return view('recetas.edit', compact('receta', 'presentaciones'));
     }
 
@@ -137,6 +138,12 @@ class RecetaController extends Controller
      */
     public function destroy(Receta $receta)
     {
+        if ($receta->consumos()->exists()) {
+            return redirect()
+                ->route('recetas.index')
+                ->with('error', 'No se puede eliminar la receta porque ya tiene consumos registrados. Puedes editarla o dejar de usarla en nuevos menus.');
+        }
+
         $nombre = $receta->nombre;
         // Eliminar relaciones en la tabla pivote
         $receta->insumos()->detach();

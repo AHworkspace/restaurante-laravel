@@ -5,6 +5,11 @@ use Illuminate\Support\Facades\Storage;
 @endphp
 
 @section('content')
+    @php
+        $hayFiltroReporte = collect(request()->except('page'))
+            ->filter(fn ($valor) => $valor !== null && $valor !== '' && $valor !== 'todos')
+            ->isNotEmpty();
+    @endphp
     <!-- ========== title-wrapper start ========== -->
     <div class="title-wrapper pt-30">
         <div class="row align-items-center">
@@ -55,6 +60,11 @@ use Illuminate\Support\Facades\Storage;
                         <table class="table">
                             <thead>
                                 <tr>
+                                    @if($hayFiltroReporte)
+                                        <th>
+                                            <button type="button" class="btn btn-sm btn-outline-primary reporte-select-all-top" data-target-sector="ventas">Seleccionar todos</button>
+                                        </th>
+                                    @endif
                                     <th class="">
                                         <h6>Identificador</h6>
                                     </th>
@@ -81,6 +91,11 @@ use Illuminate\Support\Facades\Storage;
                             <tbody>
                                 @forelse ($ventas as $venta)
                                     <tr>
+                                        @if($hayFiltroReporte)
+                                            <td>
+                                                <input type="checkbox" class="form-check-input reporte-row-checkbox" data-sector="ventas" value="{{ $venta->id }}" data-total="{{ $venta->total }}">
+                                            </td>
+                                        @endif
                                         <td class="min-width">
                                             <p>{{ $venta->id }}</p>
                                         </td>
@@ -138,7 +153,7 @@ use Illuminate\Support\Facades\Storage;
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="3" class="text-center">No existen ventas disponibles</td>
+                                        <td colspan="{{ $hayFiltroReporte ? 8 : 7 }}" class="text-center">No existen ventas disponibles</td>
                                     </tr>
                                 @endforelse
                                 <!-- end table row -->
@@ -150,6 +165,9 @@ use Illuminate\Support\Facades\Storage;
                     <div class="mt-3">
                         {{ $ventas->links() }}
                     </div>
+                    @if($hayFiltroReporte)
+                        @include('reportes._guardar-filtrado', ['sector' => 'ventas', 'titulo' => 'Guardar reporte de ventas'])
+                    @endif
                 </div>
                 <!-- end card -->
             </div>

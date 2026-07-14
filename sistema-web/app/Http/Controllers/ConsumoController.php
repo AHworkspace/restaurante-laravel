@@ -72,7 +72,7 @@ class ConsumoController extends Controller
                 'platos' => $menu->recetas->map(fn ($receta) => [
                     'id' => $receta->id,
                     'nombre' => $receta->nombre,
-                    'precio' => (float) $receta->precio,
+                    'precio' => (float) ($receta->pivot->precio_venta ?? $receta->precio),
                     'disponible' => (int) $receta->pivot->cantidad,
                 ])->concat($menu->presentacionesDirectas->map(fn($presentacion)=>['id'=>'presentacion:'.$presentacion->id,'nombre'=>$presentacion->nombre_completo,'precio'=>(float)$presentacion->pivot->precio_venta,'disponible'=>(int)$presentacion->pivot->cantidad]))->values(),
             ])->values(),
@@ -155,13 +155,14 @@ class ConsumoController extends Controller
                     );
                 }
 
-                $total = (float) $receta->precio * $cantidad;
+                $precioVenta = $menu ? (float) ($plato->pivot->precio_venta ?? $receta->precio) : (float) $receta->precio;
+                $total = $precioVenta * $cantidad;
                 if (! empty($datos['consumidor_id'])) {
                     $consumos->push(Consumo::create([
                         'consumidor_id' => $datos['consumidor_id'], 'receta_id' => $receta->id,
                         'tipo_comida_id' => $datos['tipo_comida_id'] ?? null, 'menu_dia_id' => $menu?->id,
                         'cantidad' => $cantidad, 'cantidad_menu_descontada' => $descontado,
-                        'precio_unitario' => $receta->precio, 'total' => $total,
+                        'precio_unitario' => $precioVenta, 'total' => $total,
                         'fecha_consumo' => $fecha, 'hora_consumo' => $hora,
                         'estado_pago' => 'pendiente', 'observaciones' => $datos['observaciones'] ?? null,
                         'usuario_registro_id' => Auth::id(),
@@ -171,22 +172,10 @@ class ConsumoController extends Controller
                 $venta = Venta::create([
                     'receta_id' => $receta->id, 'consumidor_id' => $datos['consumidor_id'] ?? null,
                     'tipo_comida_id' => $datos['tipo_comida_id'] ?? null, 'cantidad' => $cantidad,
-                    'precio' => $receta->precio, 'total' => $total, 'fecha_venta' => $fecha,
+                    'precio' => $precioVenta, 'total' => $total, 'fecha_venta' => $fecha,
                     'hora_venta' => $hora, 'observaciones' => $datos['observaciones'] ?? null,
                 ]);
                 $ventas->push($venta);
-
-                foreach ($receta->insumos as $insumoReceta) {
-                    $insumoId=$insumoReceta->id;$cantidadInsumo=(float)$insumoReceta->pivot->cantidad*$cantidad;
-                    $presentacionId=$insumoReceta->pivot->presentacion_id?:Insumo::find($insumoId)?->presentacionPredeterminada()->value('id');
-                    $unidadId=InsumoPresentacion::find($presentacionId)?->unidad_stock_id?:$insumoReceta->unidad_medida_id;
-                    $movimiento = new MovimientoInventario([
-                        'tipo' => 'salida', 'cantidad' => $cantidadInsumo,'cantidad_original'=>$cantidadInsumo,'cantidad_convertida'=>$cantidadInsumo,'unidad_medida_id'=>$unidadId,'unidad_inventario_id'=>$unidadId,
-                        'insumo_id' => $insumoId, 'presentacion_id'=>$presentacionId, 'motivo' => 'Venta de '.$receta->nombre,
-                    ]);
-                    $movimiento->venta_id = $venta->id;
-                    $movimiento->save();
-                }
             }
 
             return ['consumos' => $consumos, 'ventas' => $ventas];

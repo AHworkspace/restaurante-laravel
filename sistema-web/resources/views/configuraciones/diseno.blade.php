@@ -13,7 +13,6 @@ $fuentes=['Arial','Verdana','Tahoma','Georgia','Trebuchet MS'];
 @endphp
 @section('content')
 <div class="title-wrapper pt-30"><div class="title mb-30"><h2>Configuraciones - Diseño</h2></div></div>
-@if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
 @if($errors->any())<div class="alert alert-danger">{{ $errors->first() }}</div>@endif
 
 <form method="POST" action="{{ route('configuraciones.diseno.update') }}" enctype="multipart/form-data" id="form-diseno">@csrf @method('PUT')
@@ -63,3 +62,4 @@ function actualizarVistaPrevia(){var p=document.getElementById('preview-diseno')
 document.querySelectorAll('.preview-color,.preview-control').forEach(function(i){i.addEventListener('input',actualizarVistaPrevia);i.addEventListener('change',actualizarVistaPrevia);});actualizarVistaPrevia();
 </script>
 @endsection
+

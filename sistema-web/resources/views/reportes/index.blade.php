@@ -149,7 +149,7 @@
                             <div class="btn-group no-print">
                                 <button type="button" class="main-btn dark-btn btn-hover active" data-periodo="semana" style="background-color: #6F4E37; border-color: #6F4E37; font-size: 14px; padding: 5px 15px; border-radius: 6px; color: white;">SEMANAL</button>
                                 <button type="button" class="main-btn dark-btn btn-hover" data-periodo="mes" style="background-color: #6F4E37; border-color: #6F4E37; font-size: 14px; padding: 5px 15px; border-radius: 6px; color: white;">MENSUAL</button>
-                                <button type="button" class="main-btn dark-btn btn-hover" data-periodo="año" style="background-color: #6F4E37; border-color: #6F4E37; font-size: 14px; padding: 5px 15px; border-radius: 6px; color: white;">ANUAL</button>
+                                <button type="button" class="main-btn dark-btn btn-hover" data-periodo="anio" style="background-color: #6F4E37; border-color: #6F4E37; font-size: 14px; padding: 5px 15px; border-radius: 6px; color: white;">ANUAL</button>
                             </div>
                             <div class="ms-3">
                                 <select id="tipoGrafico" class="form-select" style="width: 140px;">
@@ -219,7 +219,7 @@ function formatearMoneda(valor) {
 
 function formatearFecha(fecha, periodo) {
     try {
-        if (periodo === 'año') {
+        if (periodo === 'anio' || periodo === 'año') {
             return fecha;
         }
         if (periodo === 'mes' && /^\d{4}-\d{2}$/.test(fecha)) {
@@ -415,6 +415,51 @@ document.addEventListener('DOMContentLoaded', function() {
     let renameUrl = null;
 
     document.addEventListener('click', async (event) => {
+        const combineBtn = event.target.closest('#combine-reports-btn');
+        if (combineBtn) {
+            const selected = Array.from(document.querySelectorAll('.report-combine-checkbox:checked')).map(cb => cb.value);
+            const message = document.getElementById('combine-report-message');
+            const name = document.getElementById('combine-report-name')?.value || '';
+            if (selected.length < 2) {
+                if (message) {
+                    message.className = 'w-100 text-danger';
+                    message.textContent = 'Selecciona al menos dos reportes para combinar.';
+                }
+                return;
+            }
+            combineBtn.disabled = true;
+            if (message) {
+                message.className = 'w-100 text-muted';
+                message.textContent = 'Combinando reportes...';
+            }
+            try {
+                const response = await fetch(combineBtn.dataset.url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    body: JSON.stringify({ reportes: selected, nombre: name }),
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.message || 'No se pudo combinar.');
+                if (message) {
+                    message.className = 'w-100 text-success';
+                    message.textContent = 'Reporte combinado correctamente.';
+                }
+                location.reload();
+            } catch (error) {
+                if (message) {
+                    message.className = 'w-100 text-danger';
+                    message.textContent = error.message;
+                }
+            } finally {
+                combineBtn.disabled = false;
+            }
+            return;
+        }
+
         const previewBtn = event.target.closest('.btn-ver-mov');
         if (previewBtn) {
             if (!previewModal) return;
@@ -438,6 +483,40 @@ document.addEventListener('DOMContentLoaded', function() {
             renameUrl = renameBtn.dataset.url;
             renameModalEl.querySelector('input[name="nuevo_nombre"]').value = renameBtn.dataset.nombre || '';
             renameModal.show();
+            return;
+        }
+
+        const previewGuardadoBtn = event.target.closest('.btn-ver-guardado');
+        if (previewGuardadoBtn) {
+            if (!previewModal) return;
+            const body = previewModalEl.querySelector('.modal-body');
+            body.innerHTML = '<p>Cargando...</p>';
+            previewModal.show();
+            try {
+                const response = await fetch(previewGuardadoBtn.dataset.url);
+                if (!response.ok) throw new Error('No se pudo cargar el reporte.');
+                const data = await response.json();
+                renderPreviewGuardado(body, data);
+            } catch (error) {
+                body.innerHTML = `<p class="text-danger">${error.message}</p>`;
+            }
+            return;
+        }
+
+        const deleteGuardadoBtn = event.target.closest('.btn-delete-guardado');
+        if (deleteGuardadoBtn) {
+            if (!confirm('¿Desea eliminar este reporte?')) return;
+            try {
+                const response = await fetch(deleteGuardadoBtn.dataset.url, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.message || 'No se pudo eliminar.');
+                location.reload();
+            } catch (error) {
+                alert(error.message);
+            }
             return;
         }
 
@@ -515,6 +594,46 @@ function renderPreviewMovimientos(container, data) {
                         <th>Proveedor</th>
                         <th>Fecha</th>
                         <th>Costo</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>
+    `;
+}
+
+function renderPreviewGuardado(container, data) {
+    if (!data || !data.datos) {
+        container.innerHTML = '<p>No se pudo mostrar el reporte.</p>';
+        return;
+    }
+    const rows = (data.datos || []).map((item, index) => `
+        <tr>
+            <td>${index + 1}</td>
+            <td>${item.fecha || '-'}</td>
+            <td>${item.detalle || '-'}</td>
+            <td>${item.persona || '-'}</td>
+            <td>${item.estado || item.tipo || '-'}</td>
+            <td>${item.cantidad || '-'}</td>
+            <td>Bs. ${parseFloat(item.total || 0).toFixed(2)}</td>
+        </tr>
+    `).join('');
+    container.innerHTML = `
+        <p><strong>Nombre:</strong> ${data.nombre ?? 'Sin nombre'}</p>
+        <p><strong>Sector:</strong> ${data.sector ?? '-'} ${data.subtipo ? '· ' + data.subtipo : ''}</p>
+        <p><strong>Periodo:</strong> ${data.fecha_desde ?? '-'} - ${data.fecha_hasta ?? '-'}</p>
+        <p><strong>Registros:</strong> ${data.total_registros ?? 0} | <strong>Total:</strong> Bs. ${parseFloat(data.total_monto || 0).toFixed(2)}</p>
+        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+            <table class="table table-bordered table-sm">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Fecha</th>
+                        <th>Detalle</th>
+                        <th>Cliente/Proveedor</th>
+                        <th>Estado/Tipo</th>
+                        <th>Cantidad</th>
+                        <th>Total</th>
                     </tr>
                 </thead>
                 <tbody>${rows}</tbody>

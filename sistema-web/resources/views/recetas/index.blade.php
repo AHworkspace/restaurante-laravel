@@ -103,8 +103,39 @@ use Illuminate\Support\Facades\Storage;
                                                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                                                         </div>
                                                         <div class="modal-body">
-                                                            <div style="white-space: pre-line;">
-                                                                {!! nl2br(e($receta->indicaciones)) !!}
+                                                            <div class="row g-4">
+                                                                <div class="col-md-6">
+                                                                    <h6 class="mb-3">Insumos por porcion</h6>
+                                                                    <div class="table-responsive">
+                                                                        <table class="table table-sm">
+                                                                            <thead>
+                                                                                <tr>
+                                                                                    <th>Insumo</th>
+                                                                                    <th>Presentacion</th>
+                                                                                    <th>Cantidad</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                @forelse($receta->insumos as $insumo)
+                                                                                    @php($presentacion = $insumo->presentaciones->firstWhere('id', $insumo->pivot->presentacion_id))
+                                                                                    <tr>
+                                                                                        <td>{{ $insumo->nombre }}</td>
+                                                                                        <td>{{ $presentacion?->nombre ?: '-' }}</td>
+                                                                                        <td>{{ $insumo->pivot->cantidad }} {{ $presentacion?->unidadStock()?->abreviatura ?: $insumo->unidad_medida?->abreviatura }}</td>
+                                                                                    </tr>
+                                                                                @empty
+                                                                                    <tr><td colspan="3" class="text-muted">Sin insumos registrados.</td></tr>
+                                                                                @endforelse
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-md-6">
+                                                                    <h6 class="mb-3">Indicaciones</h6>
+                                                                    <div style="white-space: pre-line;">
+                                                                        {!! nl2br(e($receta->indicaciones)) !!}
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>

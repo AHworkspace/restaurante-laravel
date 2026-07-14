@@ -123,7 +123,7 @@ use Illuminate\Support\Facades\Storage;
                                                 <h4 class="plato-name">{{ $plato->nombre }}</h4>
                                                 <p class="plato-description">{{ \Illuminate\Support\Str::limit($plato->descripcion ?: $plato->indicaciones, 100) }}</p>
                                                  <div class="plato-actions">
-                                                     <span class="plato-price">Bs. {{ number_format($plato->precio, 2) }}</span>
+                                                     <span class="plato-price">Bs. {{ number_format($plato->pivot->precio_venta ?? $plato->precio, 2) }}</span>
                                                      @if(!$esCliente)
                                                          <span class="badge {{ (int) $plato->pivot->cantidad <= 3 ? 'bg-danger' : 'bg-success' }}">
                                                              Quedan {{ (int) $plato->pivot->cantidad }} {{ (int) $plato->pivot->cantidad === 1 ? 'porción' : 'porciones' }}
@@ -134,7 +134,7 @@ use Illuminate\Support\Facades\Storage;
                                             @if(!$esCliente)
                                                 <input type="hidden" class="plato-data-receta-id" value="{{ $plato->id }}">
                                                 <input type="hidden" class="plato-data-receta-nombre" value="{{ $plato->nombre }}">
-                                                <input type="hidden" class="plato-data-receta-precio" value="{{ $plato->precio }}">
+                                                <input type="hidden" class="plato-data-receta-precio" value="{{ $plato->pivot->precio_venta ?? $plato->precio }}">
                                                 <input type="hidden" class="plato-data-tipo-comida-id" value="{{ $menu->tipoComida->id ?? null }}">
                                                 <input type="hidden" class="plato-data-disponible" value="{{ (int) ($plato->pivot->cantidad ?? 0) }}">
                                             @endif

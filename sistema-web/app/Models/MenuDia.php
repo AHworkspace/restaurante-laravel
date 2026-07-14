@@ -28,7 +28,7 @@ class MenuDia extends Model
     public function recetas()
     {
         return $this->belongsToMany(Receta::class, 'menus_dia_recetas')
-            ->withPivot(['cantidad', 'cantidad_inicial','tipo_produccion_id'])->withTimestamps();
+            ->withPivot(['cantidad', 'cantidad_inicial', 'adiciones', 'precio_venta','tipo_produccion_id'])->withTimestamps();
     }
     public function insumosDirectos()
     {
@@ -38,7 +38,7 @@ class MenuDia extends Model
     public function presentacionesDirectas()
     {
         return $this->belongsToMany(InsumoPresentacion::class,'menus_dia_presentaciones','menu_dia_id','presentacion_id')
-            ->withPivot(['precio_venta','cantidad','cantidad_inicial','tipo_produccion_id'])->withTimestamps();
+            ->withPivot(['precio_venta','cantidad','cantidad_inicial','adiciones','tipo_produccion_id'])->withTimestamps();
     }
 
     public static function normalizarHoraDia($valor): ?string

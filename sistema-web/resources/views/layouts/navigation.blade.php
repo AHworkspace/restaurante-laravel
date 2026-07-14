@@ -1,5 +1,5 @@
 @php
-$usuariosAbierto=request()->routeIs('users.*')||request()->routeIs('consumidores.*')||request()->routeIs('proveedores.*')||request()->routeIs('categorias.rangos.*');
+$usuariosAbierto=request()->routeIs('users.*')||request()->routeIs('consumidores.*')||request()->routeIs('proveedores.*')||request()->routeIs('categorias.rangos.*')||request()->routeIs('fuerzas.*')||request()->routeIs('instituciones.*')||request()->routeIs('grados.*');
 $productosAbierto=request()->routeIs('insumos.*')||request()->routeIs('categorias.insumos.*')||request()->routeIs('categorias.unidades.*')||request()->routeIs('formatos-empaque.*')||request()->routeIs('marcas.*')||request()->routeIs('notificaciones.index');
 $produccionAbierto=request()->routeIs('predicciones.*')||request()->routeIs('menus-dia.*')||request()->routeIs('recetas.*')||request()->routeIs('tipos-comida.*')||request()->routeIs('tipos-produccion.*');
 $inventarioAbierto=request()->routeIs('compras.*')||request()->routeIs('movimientos.*');

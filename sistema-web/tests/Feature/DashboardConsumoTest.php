@@ -30,12 +30,16 @@ class DashboardConsumoTest extends TestCase
     {
         [$user, $menu, $receta] = $this->dashboardData();
         $consumosAntes = \App\Models\Consumo::count();
+        $movimientosAntes = MovimientoInventario::count();
 
         $response = $this->actingAs($user)->post(route('consumos.store'), $this->payload($menu, $receta));
 
         $response->assertRedirect(route('ventas.index'));
         $this->assertDatabaseHas('ventas', ['receta_id' => $receta->id, 'consumidor_id' => null]);
         $this->assertSame($consumosAntes, \App\Models\Consumo::count());
+        $venta = \App\Models\Venta::where('receta_id', $receta->id)->latest('id')->firstOrFail();
+        $this->assertDatabaseMissing('movimiento_inventarios', ['venta_id' => $venta->id]);
+        $this->assertSame($movimientosAntes, MovimientoInventario::count());
     }
 
     public function test_dashboard_registers_sale_and_pending_consumption_for_customer(): void
@@ -54,6 +58,21 @@ class DashboardConsumoTest extends TestCase
         $this->assertNotNull($registro);
         $this->assertStringContainsString($consumidor->nombre_completo, $registro->detalles);
         $this->assertStringContainsString($receta->nombre, $registro->detalles);
+    }
+
+    public function test_dashboard_uses_menu_recipe_price(): void
+    {
+        [$user, $menu, $receta] = $this->dashboardData();
+        $consumidor = Consumidor::where('activo', true)->firstOrFail();
+        $menu->recetas()->updateExistingPivot($receta->id, ['precio_venta' => 37.50]);
+
+        $response = $this->actingAs($user)->post(route('consumos.store'), $this->payload($menu, $receta) + [
+            'consumidor_id' => $consumidor->id,
+        ]);
+
+        $response->assertRedirect(route('consumos.index'));
+        $this->assertDatabaseHas('ventas', ['receta_id' => $receta->id, 'consumidor_id' => $consumidor->id, 'precio' => 37.50, 'total' => 37.50]);
+        $this->assertDatabaseHas('consumos', ['receta_id' => $receta->id, 'consumidor_id' => $consumidor->id, 'precio_unitario' => 37.50, 'total' => 37.50]);
     }
 
     public function test_dashboard_rejects_quantities_above_menu_stock(): void

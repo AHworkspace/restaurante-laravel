@@ -519,6 +519,16 @@ $paddingCelda=['compacta'=>'8px','normal'=>'12px','comoda'=>'16px'][$densidad]??
         <!-- ========== section start ========== -->
         <section class="section">
             <div class="container-fluid">
+                @if(session('success'))
+                    <div class="alert alert-success" role="alert">
+                        {{ session('success') }}
+                    </div>
+                @endif
+                @if(session('error'))
+                    <div class="alert alert-danger" role="alert">
+                        {{ session('error') }}
+                    </div>
+                @endif
                 @yield('content')
             </div>
             <!-- end container -->
@@ -551,6 +561,7 @@ $paddingCelda=['compacta'=>'8px','normal'=>'12px','comoda'=>'16px'][$densidad]??
     @vite('resources/js/app.js')
     <script src="{{ asset('js/main.js') }}"></script>
     @stack('modals')
+    @stack('scripts')
     @yield('scripts')
 </body>
 

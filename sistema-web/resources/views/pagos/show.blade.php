@@ -45,7 +45,7 @@
                                 <p><strong>Nombre:</strong> {{ $pago->consumidor->nombre_completo }}</p>
                                 <p><strong>CI:</strong> {{ $pago->consumidor->ci }}</p>
                                 <p><strong>Código:</strong> <code>{{ $pago->consumidor->codigo_unico }}</code></p>
-                                <p><strong>Fuerza:</strong> {{ $pago->consumidor->fuerza->nombre ?? 'N/A' }}</p>
+                                <p><strong>Segmento:</strong> {{ $pago->consumidor->fuerza->nombre ?? 'N/A' }}</p>
                                 <p><strong>Institución:</strong> {{ $pago->consumidor->institucion->nombre ?? 'N/A' }}</p>
                                 <p><strong>Grado:</strong> {{ $pago->consumidor->grado->nombre ?? 'N/A' }}</p>
                                 <a href="{{ route('consumidores.show', $pago->consumidor_id) }}" class="btn btn-info btn-sm">

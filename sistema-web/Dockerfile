@@ -6,7 +6,29 @@ COPY resources ./resources
 COPY vite.config.js postcss.config.js tailwind.config.js ./
 RUN npm run build
 
-FROM composer:2 AS vendor
+FROM php:8.2-cli AS vendor
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        git \
+        unzip \
+        libpq-dev \
+        libzip-dev \
+        libpng-dev \
+        libjpeg62-turbo-dev \
+        libfreetype6-dev \
+        libicu-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install \
+        bcmath \
+        exif \
+        gd \
+        intl \
+        pdo_pgsql \
+        pgsql \
+        zip \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 WORKDIR /app
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts
